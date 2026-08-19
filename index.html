@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMS Explorer — EV Battery Systems, Interactively</title>
+<style>
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(57,135,229,0.16), transparent 60%),
+      radial-gradient(1000px 500px at 90% 0%, rgba(217,89,38,0.10), transparent 55%),
+      #060b16;
+    color:#f5f7fa;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  :root{
+    --bg:#060b16;
+    --surface:#0e1a2f;
+    --surface-hi:#122544;
+    --card-border:rgba(255,255,255,0.08);
+    --text-primary:#f5f7fa;
+    --text-secondary:#b9c4d4;
+    --text-muted:#7c8aa0;
+
+    --blue:#3987e5;
+    --orange:#d95926;
+    --aqua:#199e70;
+    --yellow:#c98500;
+    --magenta:#d55181;
+    --green:#1fae4a;
+    --violet:#9085e9;
+    --red:#e66767;
+
+    --good:#0ca30c;
+    --warning:#fab219;
+    --serious:#ec835a;
+    --critical:#d03b3b;
+  }
+
+  a{color:var(--blue);}
+  h1,h2,h3,h4{font-weight:700; letter-spacing:-0.01em; margin:0 0 8px;}
+  p{margin:0 0 10px; color:var(--text-secondary); line-height:1.55;}
+
+  /* ---------- layout shell ---------- */
+  .wrap{max-width:1180px; margin:0 auto; padding:0 20px;}
+
+  header.hero{
+    padding:56px 20px 40px;
+    text-align:center;
+    border-bottom:1px solid var(--card-border);
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--aqua); background:rgba(25,158,112,0.12);
+    border:1px solid rgba(25,158,112,0.35);
+    padding:6px 14px; border-radius:999px; margin-bottom:18px;
+  }
+  header.hero h1{
+    font-size:clamp(32px, 5vw, 52px);
+    background:linear-gradient(90deg,#ffffff, #b9c4d4 65%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  header.hero .accent{
+    background:linear-gradient(90deg,var(--blue),var(--aqua));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  header.hero .sub{
+    max-width:640px; margin:0 auto 22px; font-size:16px; color:var(--text-secondary);
+  }
+  .author-line{
+    font-size:13px; color:var(--text-muted); display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
+  }
+  .author-line b{color:var(--text-primary); font-weight:600;}
+  .dot{width:4px;height:4px;border-radius:50%;background:var(--text-muted);}
+
+  /* ---------- nav ---------- */
+  nav.topbar{
+    position:sticky; top:0; z-index:50;
+    background:rgba(6,11,22,0.88); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--card-border);
+  }
+  .nav-inner{
+    max-width:1180px; margin:0 auto; padding:10px 20px;
+    display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;
+  }
+  .nav-inner::-webkit-scrollbar{display:none;}
+  .nav-btn{
+    flex:0 0 auto;
+    display:flex; align-items:center; gap:8px;
+    padding:9px 16px; border-radius:999px; border:1px solid transparent;
+    background:transparent; color:var(--text-secondary);
+    font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap;
+    transition:all .15s ease;
+  }
+  .nav-btn:hover{background:var(--surface-hi); color:var(--text-primary);}
+  .nav-btn.active{background:var(--surface-hi); color:var(--text-primary); border-color:var(--card-border);}
+  .nav-btn .swatch{width:8px;height:8px;border-radius:50%;}
+  .nav-btn.quiz-btn{margin-left:auto; background:linear-gradient(90deg, rgba(217,89,38,0.18), rgba(217,89,38,0.05)); border-color:rgba(217,89,38,0.35); color:#f3c3a8;}
+
+  /* ---------- landing grid ---------- */
+  .landing{padding:40px 0 10px;}
+  .landing h2{font-size:22px;}
+  .topic-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:14px; margin-top:18px;
+  }
+  .topic-card{
+    background:var(--surface); border:1px solid var(--card-border); border-radius:16px;
+    padding:20px; cursor:pointer; text-align:left; transition:transform .15s ease, border-color .15s ease;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .topic-card:hover{transform:translateY(-3px); border-color:var(--card-border-hover, rgba(255,255,255,0.18));}
+  .topic-card .ic{font-size:26px;}
+  .topic-card .badge{
+    align-self:flex-start; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    padding:3px 9px; border-radius:999px; color:#0b0b0b;
+  }
+  .topic-card h3{font-size:16px; margin:2px 0 2px;}
+  .topic-card p{font-size:13px; margin:0;}
+
+  /* ---------- sections ---------- */
+  main{padding:10px 0 60px;}
+  section.topic{display:none; padding:46px 0;}
+  section.topic.active{display:block; animation:fade .35s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  .topic-head{margin-bottom:26px; padding-bottom:18px; border-bottom:1px solid var(--card-border);}
+  .topic-head .tag{font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px; display:block;}
+  .topic-head h2{font-size:28px;}
+  .topic-head p{max-width:720px; font-size:15px;}
+
+  .block{background:var(--surface); border:1px solid var(--card-border); border-radius:16px; padding:22px; margin-bottom:18px;}
+  .block h4{font-size:14px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary); margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  @media(max-width:800px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+  /* ---------- generic card / pill / table ---------- */
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:700; margin:2px 4px 2px 0;}
+  table.spec{width:100%; border-collapse:collapse; font-size:13.5px;}
+  table.spec th, table.spec td{padding:9px 10px; text-align:left; border-bottom:1px solid var(--card-border);}
+  table.spec th{color:var(--text-muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.03em;}
+  table.spec td.win{color:var(--text-primary); font-weight:700;}
+  table.spec tr:last-child td{border-bottom:none;}
+
+  .flip-card{
+    background:var(--surface-hi); border:1px solid var(--card-border); border-radius:14px; padding:16px;
+    cursor:pointer; position:relative; min-height:150px;
+  }
+  .flip-card .front, .flip-card .back{display:none;}
+  .flip-card .front.show, .flip-card .back.show{display:block;}
+  .flip-hint{position:absolute; top:12px; right:14px; font-size:10.5px; color:var(--text-muted);}
+
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; font-size:12.5px; padding:6px 12px; border-radius:10px;
+    background:var(--surface-hi); border:1px solid var(--card-border); color:var(--text-secondary); margin:3px 4px 3px 0;
+  }
+
+  button.btn{
+    font-family:inherit; font-weight:700; font-size:13.5px; cursor:pointer; border-radius:10px; border:1px solid var(--card-border);
+    background:var(--surface-hi); color:var(--text-primary); padding:9px 16px; transition:all .15s;
+  }
+  button.btn:hover{border-color:var(--blue); color:#cfe0fb;}
+  button.btn.primary{background:linear-gradient(90deg,var(--blue),#2f6fc4); border:none;}
+  button.btn.primary:hover{filter:brightness(1.08);}
+  input[type=number], input[type=range]{accent-color:var(--blue);}
+  input[type=number]{
+    background:var(--bg); border:1px solid var(--card-border); color:var(--text-primary); border-radius:8px; padding:7px 10px; font-size:13.5px; width:100%;
+  }
+  label.field{display:block; font-size:12px; color:var(--text-muted); margin-bottom:5px; font-weight:600; text-transform:uppercase; letter-spacing:.03em;}
+
+  /* bar chart (css) */
+  .barrow{display:flex; align-items:center; gap:12px; margin-bottom:12px;}
+  .barrow .lbl{width:130px; font-size:12.5px; color:var(--text-secondary); flex:0 0 auto;}
+  .bartrack{flex:1; height:14px; background:var(--bg); border-radius:8px; overflow:hidden; position:relative;}
+  .barfill{height:100%; border-radius:8px; transition:width .6s cubic-bezier(.2,.8,.2,1);}
+  .barval{width:120px; font-size:12px; color:var(--text-muted); text-align:right; flex:0 0 auto;}
+  .legend{display:flex; flex-wrap:wrap; gap:12px; margin-top:14px;}
+  .legend .item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary);}
+  .legend .sw{width:10px;height:10px;border-radius:3px;}
+
+  /* toggle group */
+  .toggle-group{display:inline-flex; background:var(--bg); border:1px solid var(--card-border); border-radius:10px; padding:3px; gap:2px;}
+  .toggle-group button{border:none; background:transparent; color:var(--text-secondary); font-size:12.5px; font-weight:700; padding:7px 14px; border-radius:8px; cursor:pointer;}
+  .toggle-group button.active{background:var(--surface-hi); color:var(--text-primary);}
+
+  /* stepper */
+  .stepper{display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap;}
+  .step-dot{
+    flex:1; min-width:110px; text-align:center; padding:10px 8px; border-radius:10px; border:1px solid var(--card-border);
+    background:var(--bg); cursor:pointer; font-size:11.5px; font-weight:700; color:var(--text-muted);
+  }
+  .step-dot .n{display:block; font-size:16px; margin-bottom:3px;}
+  .step-dot.active{background:linear-gradient(180deg, rgba(57,135,229,0.18), transparent); border-color:var(--blue); color:var(--text-primary);}
+
+  svg text{font-family:inherit;}
+  .diagnostic-item{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--card-border); font-size:13.5px; color:var(--text-secondary);}
+  .diagnostic-item:last-child{border-bottom:none;}
+  .diagnostic-item input{width:16px; height:16px;}
+  .diagnostic-item.checked{color:var(--good);}
+
+  /* quiz */
+  .quiz-shell{max-width:680px; margin:0 auto;}
+  .quiz-progress{height:6px; background:var(--surface); border-radius:4px; overflow:hidden; margin-bottom:22px;}
+  .quiz-progress-fill{height:100%; background:linear-gradient(90deg,var(--blue),var(--aqua)); width:0%; transition:width .3s;}
+  .quiz-q{font-size:18px; font-weight:700; margin-bottom:16px;}
+  .quiz-opt{
+    display:block; width:100%; text-align:left; padding:13px 16px; margin-bottom:9px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--card-border); color:var(--text-primary); font-size:14px; cursor:pointer;
+  }
+  .quiz-opt:hover{border-color:var(--blue);}
+  .quiz-opt.correct{border-color:var(--good); background:rgba(12,163,12,0.14);}
+  .quiz-opt.wrong{border-color:var(--critical); background:rgba(208,59,59,0.14);}
+  .quiz-explain{font-size:13px; color:var(--text-secondary); background:var(--surface-hi); border-radius:10px; padding:12px 14px; margin-top:8px; display:none;}
+  .quiz-explain.show{display:block;}
+  .quiz-result{text-align:center; padding:30px 10px;}
+  .quiz-result .score{font-size:52px; font-weight:800; background:linear-gradient(90deg,var(--blue),var(--aqua)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+
+  footer{border-top:1px solid var(--card-border); padding:34px 20px; text-align:center;}
+  footer p{font-size:12.5px; color:var(--text-muted); max-width:640px; margin:0 auto 6px;}
+  footer .cta{font-size:13.5px; color:var(--text-secondary); margin-top:14px;}
+
+  .status-good{color:var(--good);} .status-warn{color:var(--warning);} .status-crit{color:var(--critical);}
+  .disclaimer-box{background:rgba(250,178,25,0.08); border:1px solid rgba(250,178,25,0.3); border-radius:12px; padding:14px 16px; font-size:12.5px; color:#f0d9a8;}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">⚡ EV Battery Systems Series</span>
+    <h1>BMS <span class="accent">Explorer</span></h1>
+    <p class="sub">An interactive walkthrough of battery management systems — estimation algorithms (SOC/SOH/SOP + AI), cell chemistries, power switches, transient protection, HV contactor safety, sensor/MCU architecture, thermal management, control firmware, power-path losses, and the standards a pack has to pass. Click around, run the calculators, then try the live simulator.</p>
+    <div class="author-line">
+      <span>Built by <b>Saad Mahfoudi</b> — Embedded Systems &amp; High-Voltage Engineer</span>
+      <span class="dot"></span>
+      <span>Based on the #EVBatterySystemsSeries</span>
+    </div>
+  </div>
+</header>
+
+<nav class="topbar">
+  <div class="nav-inner" id="navInner"></div>
+</nav>
+
+<div class="wrap landing">
+  <h2>Pick a topic</h2>
+  <p>Eleven building blocks of an EV battery management system, each with something to click, drag, or calculate — plus a real simulator I built.</p>
+  <div class="topic-grid" id="topicGrid"></div>
+</div>
+
+<main class="wrap" id="mainArea"></main>
+
+<footer>
+  <p>Educational and informational content only. Values, formulas, and thresholds are typical / illustrative examples — always verify against OEM documentation, datasheets, and safety standards before applying to real systems. HV battery work involves lethal voltages: follow manufacturer procedures, isolation checks, PPE, and approved test equipment.</p>
+  <div class="cta">Made with real BMS/HV validation experience · <span id="footerYear"></span> · Feedback welcome</div>
+</footer>
+
+<script>
+/* =========================================================
+   DATA
+   ========================================================= */
+
+const COLORS = {blue:'#3987e5', orange:'#d95926', aqua:'#199e70', yellow:'#c98500', magenta:'#d55181', green:'#1fae4a', violet:'#9085e9', red:'#e66767'};
+const STATUS = {good:'#0ca30c', warning:'#fab219', serious:'#ec835a', critical:'#d03b3b'};
+
+const TOPICS = [
+  {id:'soc', icon:'🔋', color:COLORS.aqua, badge:'Day 2', title:'State of Charge (SOC)', tagline:'The fuel gauge of a battery — how it\'s calculated and estimated in real time.'},
+  {id:'chem', icon:'🧪', color:COLORS.blue, badge:'Chemistry', title:'Battery Types', tagline:'Lead-acid to solid-state: five chemistries powering EVs today and tomorrow.'},
+  {id:'switch', icon:'🔌', color:COLORS.violet, badge:'Power Stage', title:'IGBT vs MOSFET', tagline:'Choosing the right power switch for a BMS — voltage, speed, size, cost.'},
+  {id:'protect', icon:'🛡️', color:COLORS.orange, badge:'Protection', title:'TVS vs MOV', tagline:'Two transient protectors, two jobs — clamping speed vs surge energy.'},
+  {id:'contactor', icon:'🧯', color:COLORS.red, badge:'HV Safety', title:'Contactor + Pre-Charge', tagline:'How an HV battery safely connects to the vehicle without frying the DC-link.'},
+  {id:'hardware', icon:'🖥️', color:COLORS.aqua, badge:'Architecture', title:'MCU, AFE & Sensors', tagline:'Where the voltage, current and temperature sensors actually live, and how signals get to the MCU.'},
+  {id:'thermal', icon:'🌡️', color:COLORS.orange, badge:'Thermal', title:'Thermal Management', tagline:'Cooling architectures, heating, and how the pack avoids thermal runaway propagation.'},
+  {id:'ecu', icon:'🧩', color:COLORS.blue, badge:'Firmware', title:'BMS Control Algorithm', tagline:'The main control loop, state machine and balancing logic — as pseudocode.'},
+  {id:'power', icon:'🔗', color:COLORS.yellow, badge:'Power Path', title:'DC-Link, Cables & Losses', tagline:'Internal resistance, connectors, busbars — where the watts actually go.'},
+  {id:'standards', icon:'📐', color:COLORS.violet, badge:'Compliance', title:'Standards & Testing', tagline:'ISO 26262, UN 38.3, IEC 62660 and the abuse tests a pack has to survive.'},
+  {id:'simulator', icon:'🛰️', color:COLORS.magenta, badge:'Case Study', title:'Live 14S2P Simulator', tagline:'A real BMS FSM simulator I built — precharge sequencing, fault injection, balancing.'},
+];
+
+const SOC_METHODS = [
+  {name:'Coulomb Counting', principle:'Integrates the current over time.', eq:'SOC(t) = SOC(t₀) − (1/Cₙ)∫ I(τ) dτ', pros:['Simple and widely used','High resolution'], cons:['Errors accumulate over time','Sensitive to sensor drift and noise'], accuracy:'Medium', response:'Real-time', use:'Short-term, stable conditions'},
+  {name:'Open Circuit Voltage (OCV)', principle:'Uses the relationship between OCV and SOC after the battery is at rest.', eq:'SOC = f(OCV), read from an OCV–SOC lookup curve', pros:['Good accuracy','No current measurement required'], cons:['Requires rest time','Not suitable during charge/discharge'], accuracy:'High (at rest)', response:'Slow (requires rest time)', use:'Long-term validation'},
+  {name:'Kalman Filter', principle:'Combines a mathematical battery model with real-time measurements (V, I, T) to estimate SOC.', eq:'Battery Model + Measurements → Kalman Filter → SOC', pros:['High accuracy and robust','Works in real-time'], cons:['Computationally complex','Needs an accurate model'], accuracy:'High', response:'Real-time', use:'Dynamic conditions, EV applications'},
+  {name:'Hybrid Methods', principle:'Combines two or more methods to improve accuracy and compensate for individual weaknesses.', eq:'e.g. Coulomb Counting + OCV + Model-based (Kalman Filter)', pros:['Higher accuracy','More reliable in all conditions'], cons:['More complex','Higher computational cost'], accuracy:'Very High', response:'Real-time', use:'Advanced BMS'},
+];
+
+const SOC_FACTORS = [
+  ['🌡️','Temperature','Affects battery capacity and voltage.'],
+  ['📉','Current Measurement Error','Sensor noise and drift.'],
+  ['🔧','Battery Ageing (SOH)','Capacity fade affects SOC.'],
+  ['🎯','Initial SOC Error','Incorrect initial value leads to drift.'],
+  ['⚡','Load Profile','High dynamic loads increase error.'],
+];
+
+const SOC_PARAMS = [
+  ['SOC','How much charge is left'],
+  ['SOH','How healthy the battery is'],
+  ['SOP (Power)','How much power the battery can deliver'],
+  ['SOE (Energy)','How much energy is left (Wh)'],
+];
+
+const BATTERIES = [
+  {name:'Lead-Acid (VRLA/SLA)', color:COLORS.blue, tag:'Oldest & most traditional', density:[30,50], densityMax:500, cycles:[200,500], cyclesMax:10000, cost:'Low', weight:'High', pros:['Low cost','Simple & reliable','Easy recycling'], cons:['Heavy & bulky','Low energy density','Short cycle life'], usedIn:['Low-speed EVs','E-rickshaws','Backup systems']},
+  {name:'Nickel-Metal Hydride (NiMH)', color:COLORS.orange, tag:'Improved lead-acid successor', density:[60,120], densityMax:500, cycles:[500,1000], cyclesMax:10000, cost:'Medium', weight:'Medium', pros:['Better energy density','More durable than lead-acid','Safer performance'], cons:['Higher self-discharge','Lower energy density than Li-ion'], usedIn:['Hybrid EVs (HEV)','Early-generation EVs','Some commercial vehicles']},
+  {name:'Lithium-Ion (Li-ion)', color:COLORS.aqua, tag:'Most widely used in modern EVs', density:[150,250], densityMax:500, cycles:[1000,2000], cyclesMax:10000, cost:'Med–High', weight:'Light', pros:['High energy density','Long cycle life','Lightweight','Fast charging'], cons:['Higher cost','Needs protection circuit','Temperature-sensitive'], usedIn:['Most EVs (Tesla, MG, Nexon EV)','Two-wheelers, cars, buses']},
+  {name:'Lithium Iron Phosphate (LiFePO4)', color:COLORS.yellow, tag:'Li-ion variant, safety-first', density:[90,160], densityMax:500, cycles:[2000,5000], cyclesMax:10000, cost:'Medium', weight:'Light–Med', pros:['Very safe & stable','Long cycle life','Good thermal stability','Environment friendly'], cons:['Lower energy density than Li-ion','Slightly pricier than some Li-ion'], usedIn:['Electric buses','Commercial EVs','Some passenger EVs']},
+  {name:'Solid-State (Next-Gen)', color:COLORS.magenta, tag:'Solid electrolyte, still emerging', density:[250,500], densityMax:500, cycles:[3000,10000], cyclesMax:10000, cost:'High (now)', weight:'Very Light', pros:['Very high energy density','Ultra-safe, non-flammable','Long life','Fast charging'], cons:['Very high cost currently','Still in development','Manufacturing challenges'], usedIn:['Future EVs (under development)','Expected in ~5–10 years']},
+];
+
+const SWITCHES = {
+  igbt:{name:'IGBT', full:'Insulated Gate Bipolar Transistor', color:COLORS.orange,
+    points:['Suitable for high voltage & high power applications','Higher current & voltage handling capability','Slower switching speed','Higher conduction & switching losses','Generally larger size'],
+    spec:{voltage:'High (600V–1200V+)', current:'High', speed:1, condLoss:4, switchLoss:4, efficiency:2, thermal:'More heat', size:'Larger', cost:'Generally higher', app:'High voltage & high power systems'},
+    when:['System voltage is high (above ~250–350V)','High power applications','Lower switching frequency','Rugged, robust design needed']},
+  mosfet:{name:'MOSFET', full:'Metal-Oxide-Semiconductor Field-Effect Transistor', color:COLORS.blue,
+    points:['Excellent for low to medium voltage applications','Very fast switching speed','Low on-resistance (RDS(on))','Lower conduction & switching losses','Compact size, high efficiency'],
+    spec:{voltage:'Low–Medium (12V–150V/250V/500V)', current:'High (RDS(on) & paralleling dependent)', speed:5, condLoss:2, switchLoss:2, efficiency:4, thermal:'Less heat', size:'Compact', cost:'Generally lower', app:'Low–medium voltage battery systems (2W, e-bike, ESS, robotics...)'},
+    when:['System voltage is low to medium (12V–150V)','High efficiency required','Fast switching required','Compact design matters','Most Li-ion battery packs']},
+};
+
+const TVS = {name:'TVS Diode', sub:'Transient Voltage Suppressor', color:COLORS.blue,
+  desc:'Fast-acting semiconductor device that clamps voltage spikes to a safe level in nanoseconds.',
+  chars:['Very fast response (ns)','Precise clamping voltage','Low leakage current','Excellent for ESD, EFT/Burst','Handles repetitive transients','Lower energy absorption (vs MOV)'],
+  apps:['Battery line protection','CAN / LIN bus','USB interfaces','Sensor & GPIO','ECU I/O protection','ESD protection']};
+const MOV = {name:'MOV', sub:'Metal Oxide Varistor', color:COLORS.orange,
+  desc:'High-energy absorber that limits high-voltage surges by clamping and absorbing large transient energy.',
+  chars:['High energy / surge absorption','Very high surge current capability','Higher leakage current','Ages with repeated high-energy surges','Best for high-energy applications'],
+  apps:['Battery line surge (load dump)','Starter motor / alternator protection','Power distribution units','Lightning-induced surges (indirect)','High-energy transient areas']};
+const TRANSIENTS = [
+  ['Load Dump','Up to 80V / 100V (12V system)'],
+  ['Jump Start','Up to 60V / 70V'],
+  ['ISO Pulse','Up to ±150V'],
+  ['ESD / EFT','Up to ±8kV / ±4kV'],
+];
+
+const PRECHARGE_STEPS = [
+  {n:1, name:'System Off', desc:'Main contactors are open and the DC-link capacitor is discharged.', main:false, pc:false, cap:0, flow:'none'},
+  {n:2, name:'Pre-Charge', desc:'Pre-charge contactor closes. Current flows through the pre-charge resistor.', main:false, pc:true, cap:32, flow:'pc'},
+  {n:3, name:'DC-Link Rises', desc:'Capacitor voltage (Vdc-link) rises gradually toward the battery voltage.', main:false, pc:true, cap:78, flow:'pc'},
+  {n:4, name:'Main HV Connection', desc:'Pre-charge condition satisfied (per system strategy) — main contactor(s) close.', main:true, pc:true, cap:100, flow:'main'},
+  {n:5, name:'Pre-Charge Path Opens', desc:'Pre-charge contactor opens. Normal operation continues without current through the resistor.', main:true, pc:false, cap:100, flow:'main'},
+];
+
+const PC_PROBLEMS = ['Open / failed pre-charge resistor','Pre-charge contactor not operating','Wiring / connector issue','Incorrect control signal','DC-link voltage not rising as expected','Unexpected load on the HV bus','Incorrect sensing / measurement','Insulation / other HV system fault','Contactor / control system fault'];
+const PC_DIAGNOSTIC = ['Battery voltage present?','Contactor control command present?','Pre-charge path actually switching?','DC-link voltage rising as expected?','Voltage difference between battery and DC-link reaching the system\'s specified condition?','Main contactor operating correctly?','No unexpected fault / interlock active?'];
+const PC_CONSEQUENCES = ['Large inrush current into the DC-link capacitor','High electrical stress on contactors, cables and capacitor','Contactor contact pitting or welding risk','Possible damage to inverter / other components','Reduced system reliability and safety'];
+
+/* =========================================================
+   PART 2 DATA — SOH / SOP / AI, hardware, thermal, ECU,
+   power losses, standards
+   ========================================================= */
+
+const SOH_METHODS = [
+  {name:'Capacity Fade Tracking', principle:'Compares the actual charge delivered on a full (or partial) cycle against the cell\'s rated/beginning-of-life capacity.', eq:'SOH(%) = (Measured Full Capacity / Rated Capacity) × 100', pros:['Direct, intuitive metric','No extra hardware needed'], cons:['Needs a controlled full/partial reference cycle','Slow — only updates occasionally']},
+  {name:'Internal Resistance Growth', principle:'Tracks DC internal resistance (or AC impedance via EIS) over life — resistance rises as SEI layer thickens and contact degrades.', eq:'SOH ≈ f(R(t) / R(BOL))', pros:['Can be estimated during normal pulses','Sensitive early-warning indicator'], cons:['Resistance is temperature & SOC dependent — needs compensation','EIS hardware adds cost']},
+  {name:'Incremental Capacity / Differential Voltage (ICA/DVA)', principle:'Analyzes dQ/dV or dV/dQ peaks from a slow charge/discharge — peak shift and shrinkage map to specific degradation modes (lithium plating, active material loss).', eq:'IC = dQ/dV vs V', pros:['Diagnoses *why* the cell aged, not just how much','Well suited to lab / end-of-line testing'], cons:['Needs a slow, controlled charge — impractical for onboard, real-time use']},
+  {name:'Model-Based (RLS / Equivalent Circuit)', principle:'Recursive Least Squares (or similar) online identification of the equivalent-circuit model parameters (R0, R1‖C1); resistance & capacity drift feed the SOH estimate.', eq:'θ̂(k) = θ̂(k−1) + K(k)·[y(k) − φ(k)ᵀθ̂(k−1)]', pros:['Runs online, in the vehicle','Adapts continuously with use'], cons:['Sensitive to excitation — needs current variation to identify parameters well']},
+];
+
+const AI_METHODS = [
+  {name:'LSTM / GRU (Recurrent Neural Nets)', input:'Sequences of V, I, T over a time window', best:'SOC & SOH, capturing hysteresis and dynamic drive-cycle behavior', note:'Learns temporal patterns without an explicit electrochemical model; needs a large labeled drive-cycle dataset to train well.'},
+  {name:'Feedforward NN / Physics-Informed Hybrid', input:'Instantaneous V, I, T (+ model residual)', best:'Correcting/fusing with an EKF — NN learns the model\'s error, not the whole system', note:'Keeps interpretability of the physical model while letting the NN mop up what the model misses.'},
+  {name:'Gaussian Process / SVR Regression', input:'Partial-charge curve features, cycle count, resistance', best:'SOH & remaining-useful-life estimation', note:'Gives a confidence interval along with the estimate — useful for warranty/second-life decisions.'},
+  {name:'Unscented / Particle Filter (nonlinear Bayesian)', input:'Same as EKF, but handles strong nonlinearity better', best:'SOC in highly nonlinear regions (very low/high SOC, cold temperature)', note:'More compute than EKF; particle filters especially can be heavy for a real-time automotive MCU.'},
+];
+const AI_TRADE = [
+  ['Interpretability', 'High (explicit equations)', 'Low–Medium (learned weights)'],
+  ['Data required', 'A validated cell/battery model', 'Large labeled datasets (drive cycles, aging)'],
+  ['Handles nonlinearity/aging drift', 'Needs manual re-tuning', 'Can learn it implicitly, given enough data'],
+  ['Real-time / embedded cost', 'Low (EKF runs fine on a Cortex-M)', 'Higher — often needs quantized/TinyML models or edge inference'],
+  ['Typical role today', 'Onboard, safety-critical estimation', 'Cloud/offline SOH & RUL analytics, or fused correction layer'],
+];
+
+const SENSORS = [
+  {icon:'🔋', name:'Cell voltage sense', where:'Differential wire to every cell tab (or every series group), through a fuse/PTC + RC filter', why:'OV/UV protection, SOC/SOH estimation, imbalance detection'},
+  {icon:'⚡', name:'Pack current sensor', where:'In series with the main negative (or positive) HV path — shunt + isolated amplifier, or closed-loop Hall-effect sensor', why:'Coulomb counting, OC protection, power (SOP) calculation'},
+  {icon:'🌡️', name:'NTC temperature sensors', where:'Busbars/interconnects (hot spots), module center, coolant inlet/outlet, near the AFE/MCU board — often redundant pairs', why:'OT protection, thermal derating, cooling loop control, plausibility checks'},
+  {icon:'🛡️', name:'Isolation monitoring device (IMD)', where:'Monitors HV+ / HV− insulation resistance to chassis ground, continuously, both at rest and in operation', why:'Detects insulation faults before they become a shock hazard (ISO 6469-3 / UN R100)'},
+  {icon:'🔐', name:'HVIL loop', where:'Low-voltage loop daisy-chained through every HV connector and service cover', why:'Any HV connector/cover opening breaks the loop → BMS immediately opens contactors'},
+];
+const AFE_MCU = {
+  mcu:'Automotive-grade 32-bit MCU (e.g. lockstep-core families such as Infineon AURIX, STM32 automotive, NXP S32K, TI TMS570), often certified for ASIL-D use.',
+  afe:'Analog front-end IC(s) (e.g. BQ769xx / LTC681x / MC3377x class devices) measure per-cell voltage, drive passive balancing FETs, and report over an isolated daisy-chain (isoSPI/SPI) to the master.',
+  isolation:'HV-side electronics are galvanically isolated from the LV (12V) control side via isoSPI, digital isolators, or optocouplers — the master MCU never sits directly on HV potential.',
+  comms:'Master BMS talks to the vehicle (inverter, charger, instrument cluster) over CAN / CAN-FD, reporting SOC, SOH, limits and diagnostic trouble codes (DTCs).',
+};
+
+const COOLING_METHODS = [
+  {name:'Passive / Forced Air', desc:'Fans push cabin or ambient air across the modules.', pros:['Simple, low cost, low complexity'], cons:['Weak, uneven cooling — historically linked to faster hot-climate degradation on some early air-cooled EVs'], use:'Early EVs, some HEVs, low-power packs'},
+  {name:'Indirect Liquid (cold plate)', desc:'Glycol/water coolant loop through cold plates bonded under or between modules; pump + chiller + radiator.', pros:['Even temperature distribution','Handles fast charging heat loads well'], cons:['More cost, weight, complexity, potential leak path'], use:'Most modern EVs'},
+  {name:'Direct / Immersion Cooling', desc:'Cells immersed in (or sprayed with) a dielectric fluid.', pros:['Very high heat transfer, excellent evenness'], cons:['Still maturing for mass production, fluid compatibility & serviceability questions'], use:'High-performance / racing packs, emerging production use'},
+  {name:'Phase Change Material (PCM)', desc:'Wax-like material around cells absorbs heat during peaks by melting, releases it slowly later.', pros:['Passive, no moving parts, buffers transient spikes'], cons:['No active heat rejection — needs another path to actually get rid of heat long-term'], use:'Often combined with air or liquid cooling'},
+  {name:'Refrigerant Direct Cooling', desc:'Battery cold plate shares the vehicle\'s A/C refrigerant loop directly.', pros:['Very fast, powerful cooling — good for DC fast-charge preconditioning'], cons:['Tighter integration with cabin HVAC design, more complex controls'], use:'Some modern high-performance EV platforms'},
+];
+
+const LOSS_DEFAULTS = {current:200, rCell:8, rBusbar:1.5, rCable:3, rConnector:2};
+
+const STANDARDS_LIST = [
+  {std:'ISO 26262 (Parts 1–12)', scope:'Functional safety for road-vehicle E/E systems', detail:'Risk-based ASIL A–D classification; BMS safety functions like contactor control and isolation monitoring are typically engineered to ASIL C/D with fault detection and redundancy.'},
+  {std:'UN 38.3', scope:'Transport safety for lithium batteries (UN Manual of Tests and Criteria, §38.3)', detail:'Mandatory for shipping cells/modules/packs by air, sea or road. Eight tests (T1–T8): altitude simulation, thermal test, vibration, shock, external short circuit, impact/crush, overcharge, forced discharge.'},
+  {std:'IEC 62660 (Parts 1–3)', scope:'Lithium-ion cells for propulsion of electric road vehicles', detail:'Part 1 performance (capacity, efficiency, cycle life); Part 2 reliability & abuse (vibration, shock, temperature extremes); Part 3 safety requirements (overcharge, internal short, thermal propagation).'},
+  {std:'IEC 62133-2', scope:'Safety of portable sealed secondary lithium cells/batteries', detail:'Widely referenced baseline cell-safety standard, including external short-circuit, crush, and thermal abuse tests.'},
+  {std:'IEC 62619', scope:'Safety of secondary lithium cells/batteries for industrial use', detail:'Often applied to larger-format cells and stationary/ESS-style applications alongside automotive-specific standards.'},
+  {std:'ISO 6469 (Parts 1–4)', scope:'Electric road vehicles — safety specifications', detail:'Part 1 onboard REESS; Part 2 vehicle operational safety; Part 3 electrical safety (isolation, HVIL); Part 4 post-crash electrical safety.'},
+  {std:'SAE J2464', scope:'EV/HEV rechargeable energy storage system (RESS) abuse testing', detail:'Thermal, mechanical and electrical abuse tests — thermal abuse, crush, nail penetration, overcharge, fire exposure.'},
+  {std:'GB 38031 (China)', scope:'Electric vehicle traction battery safety requirements', detail:'Includes a mandatory thermal-propagation test: no fire or explosion for 5 minutes after a triggered thermal-runaway event, with an early warning signal to occupants.'},
+  {std:'UL 2580', scope:'Batteries for use in electric vehicles (North America)', detail:'Electrical, mechanical and thermal safety testing for traction battery systems.'},
+  {std:'ISO 12405 / ISO 21498', scope:'Lithium-ion traction battery pack & system test specifications', detail:'Performance and reliability testing at the pack/system level, complementing cell-level IEC 62660.'},
+  {std:'ISO 16750', scope:'Environmental conditions for automotive electrical/electronic equipment', detail:'Thermal shock, humidity, vibration and cyclic-temperature stress testing for onboard electronics including the BMS itself.'},
+];
+const TEST_CATEGORIES = [
+  {cat:'Electrical', icon:'⚡', tests:['Overcharge / over-discharge','External short circuit','Insulation resistance / HVIL verification','Overcurrent / internal short circuit']},
+  {cat:'Mechanical', icon:'🔨', tests:['Vibration & mechanical shock','Crush test','Drop test','Nail penetration']},
+  {cat:'Thermal', icon:'🔥', tests:['Thermal cycling & thermal shock','High-temperature storage','Thermal propagation / runaway test','Fire exposure']},
+  {cat:'Environmental', icon:'💧', tests:['Ingress protection (e.g. IP67/IP69K)','Humidity exposure','Altitude / pressure simulation']},
+  {cat:'EMC', icon:'📡', tests:['Radiated & conducted emissions (CISPR 25)','Radiated & conducted immunity (ISO 11452)']},
+];
+
+const ECU_LOOP = [
+  {n:1, t:'Read sensors', d:'Cell voltages, pack current, temperatures, isolation resistance, HVIL status — sampled on a fixed protection-loop tick (commonly 10–100 ms).'},
+  {n:2, t:'Update estimators', d:'Run SOC (Coulomb counting + OCV/Kalman correction), SOH and SOP estimation on a slower cadence.'},
+  {n:3, t:'Check safety limits', d:'Compare against OV / UV / OC / OT / isolation / HVIL thresholds; set/clear fault flags.'},
+  {n:4, t:'Evaluate state machine', d:'IDLE → PRECHARGE → READY → CHARGING / DISCHARGING → FAULT_x, exactly like the simulator below.'},
+  {n:5, t:'Balancing decision', d:'Passive: bleed cells above (avg + threshold) through a bypass FET. Active: shuttle charge between cells via a small DC-DC/capacitor stage.'},
+  {n:6, t:'Command actuators', d:'Drive contactor coils (via gate drivers), balancing FETs, and any cooling-loop request.'},
+  {n:7, t:'Communicate & log', d:'Publish SOC/SOH/limits/DTCs on CAN to the vehicle ECU/inverter/charger; log diagnostics; kick the watchdog.'},
+];
+const ECU_PSEUDOCODE = `void bms_main_loop(void) {
+    read_cell_voltages(&pack);
+    read_pack_current(&pack);
+    read_temperatures(&pack);
+    read_isolation_and_hvil(&pack);
+
+    soc = estimate_soc(pack);      // Coulomb counting + EKF correction
+    soh = estimate_soh(pack);      // resistance growth / capacity fade
+    sop = estimate_sop(pack, soc, temps, v_limits);
+
+    faults = check_safety_limits(pack, soc, soh);   // OV/UV/OC/OT/ISO/HVIL
+
+    state = fsm_update(state, faults, contactor_cmd, precharge_pct);
+
+    balance_cmd = balancing_strategy(pack.cell_v, threshold);
+
+    drive_contactors(state);
+    drive_balancing_fets(balance_cmd);
+
+    can_tx_status(soc, soh, sop, faults, state);
+    watchdog_kick();
+}
+// tick period: ~10-100 ms for the protection loop,
+// slower (~1 s or on-event) for SOC/SOH/SOP refinement`;
+
+const DISCHARGE_CURVES = [
+  {name:'Lead-Acid', color:COLORS.blue, points:[2.1,2.08,2.05,2.02,1.98,1.9,1.75]},
+  {name:'NiMH', color:COLORS.orange, points:[1.35,1.28,1.24,1.22,1.2,1.15,1.0]},
+  {name:'Li-ion (NMC-style)', color:COLORS.aqua, points:[4.2,4.0,3.85,3.7,3.55,3.3,2.8]},
+  {name:'LiFePO4', color:COLORS.yellow, points:[3.55,3.35,3.28,3.25,3.22,3.15,2.8]},
+  {name:'Solid-State', color:COLORS.magenta, points:[4.3,4.1,3.95,3.8,3.65,3.4,2.9]},
+];
+
+const QUIZ = [
+  {q:'SOC is 35Ah remaining on a 50Ah rated pack. What\'s the SOC?', opts:['35%','50%','70%','85%'], a:2, exp:'SOC(%) = (Remaining/Rated) × 100 = (35/50) × 100 = 70%.'},
+  {q:'What\'s the typical safe operating window for Li-ion SOC?', opts:['0%–100%','10%–90%','25%–75%','50%–100%'], a:1, exp:'Staying within ~10%–90% avoids deep discharge and overcharge stress.'},
+  {q:'Which SOC estimation method needs the battery to be at rest?', opts:['Coulomb Counting','Open Circuit Voltage (OCV)','Kalman Filter','Hybrid Methods'], a:1, exp:'OCV relies on the OCV–SOC relationship, which only holds once the battery has rested and voltage has stabilized.'},
+  {q:'Coulomb Counting\'s main weakness is:', opts:['Needs rest time','Errors accumulate over time','Too computationally complex','Can\'t work in real time'], a:1, exp:'It integrates current over time, so small sensor errors and drift accumulate — it needs periodic correction (often from OCV).'},
+  {q:'Which battery chemistry is most widely used in modern EVs today?', opts:['Lead-Acid','NiMH','Lithium-Ion (Li-ion)','Solid-State'], a:2, exp:'Li-ion dominates modern EVs (Tesla, MG, Nexon EV, etc.) thanks to high energy density and fast charging.'},
+  {q:'LiFePO4 is chosen over standard Li-ion mainly for:', opts:['Higher energy density','Lower weight','Safety and thermal stability','Lower manufacturing cost'], a:2, exp:'LiFePO4 trades some energy density for excellent safety, thermal stability, and long cycle life.'},
+  {q:'IGBT-based switching is generally preferred when:', opts:['System voltage is 12V–48V','System voltage is high (250V+) and power is high','You need the smallest possible footprint','You need the fastest switching speed'], a:1, exp:'IGBTs handle high voltage/current well but switch slower — a good fit for high-voltage, high-power systems.'},
+  {q:'MOSFETs are usually the better BMS switch choice because of:', opts:['Higher voltage rating than IGBT','Fast switching and low RDS(on) at low–medium voltage','Better performance above 1000V','Lower current handling'], a:1, exp:'For most lithium packs (12V–500V), MOSFETs win on switching speed, efficiency, and compact size.'},
+  {q:'A TVS diode is the better choice for protecting:', opts:['A 12V battery line against load dump','A CAN bus against ESD / fast transients','An alternator against lightning surges','A power distribution unit'], a:1, exp:'TVS diodes clamp fast, low-to-moderate-energy transients (ESD, EFT) in nanoseconds — ideal for signal/data lines.'},
+  {q:'A MOV is the better choice for:', opts:['ESD protection on a USB line','High-energy surges like load dump','Precise low-voltage clamping','Nanosecond-speed signal protection'], a:1, exp:'MOVs absorb large transient energy (surges, load dump) but respond and age differently than TVS diodes.'},
+  {q:'Why does an EV battery pack need a pre-charge circuit?', opts:['To charge the battery faster','To limit inrush current into the discharged DC-link capacitor','To cool the contactors','To measure SOH'], a:1, exp:'Connecting a charged battery directly to a discharged DC-link capacitor would cause a large, damaging inrush current.'},
+  {q:'In an RC pre-charge circuit, at t = τ (one time constant), the capacitor voltage is at about:', opts:['37% of final value','50% of final value','63% of final value','100% of final value'], a:2, exp:'τ = R × C. At t = τ, V ≈ 63% of the final (battery) voltage for an ideal RC charging curve.'},
+  {q:'SOH is best described as:', opts:['How much charge is left right now','How much of the battery\'s original capability remains, vs when it was new','How fast the battery can charge','The battery\'s current temperature'], a:1, exp:'SOH tracks long-term degradation — typically expressed as remaining capacity or resistance vs beginning-of-life values.'},
+  {q:'A key advantage of AI/ML-based SOC or SOH estimators over classic model-based methods is:', opts:['They need no data at all','They can implicitly learn nonlinear, aging-dependent behavior from data','They always run faster on a small embedded MCU','They eliminate the need for any sensors'], a:1, exp:'ML methods can capture complex, hard-to-model behavior — at the cost of needing large training datasets and usually more compute.'},
+  {q:'The pack current sensor is typically placed:', opts:['Inside the DC-link capacitor','In series with the main HV path (e.g. near the negative contactor)','On the vehicle\'s 12V battery','Inside the charger connector only'], a:1, exp:'A shunt or Hall-effect current sensor sits in series with the main HV current path so it sees total pack current for Coulomb counting and OC protection.'},
+  {q:'Which cooling architecture is most common in modern production EVs?', opts:['Forced air only','Indirect liquid cooling with cold plates','Immersion cooling','No thermal management needed'], a:1, exp:'Most current EVs use a glycol/water loop through cold plates for even, powerful heat removal — especially important for fast charging.'},
+  {q:'UN 38.3 is primarily concerned with:', opts:['Functional safety of the BMS electronics','Transport safety testing for lithium batteries (air/sea/road shipping)','Charging connector standards','Motor control algorithms'], a:1, exp:'UN 38.3 defines the T1–T8 test series (altitude, thermal, vibration, shock, short circuit, crush, overcharge, forced discharge) required to ship lithium cells/packs.'},
+];
+
+const SIMULATOR_B64 = "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVURi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiPgo8dGl0bGU+Qk1TIDE0UzJQIFNpbXVsYXRvcjwvdGl0bGU+CjxzdHlsZT4KKntib3gtc2l6aW5nOmJvcmRlci1ib3g7bWFyZ2luOjA7cGFkZGluZzowfQo6cm9vdHsKICAtLWJnOiMwZDExMTc7LS1iZzI6IzE2MWIyMjstLWJnMzojMWYyOTM3Oy0tYmc0OiMyZDM3NDg7CiAgLS1ib3JkZXI6IzMwMzYzZDstLWJvcmRlcjI6IzRhNTU2ODsKICAtLXRleHQ6I2U2ZWRmMzstLXRleHQyOiM4Yjk0OWU7LS10ZXh0MzojNmU3NjgxOwogIC0tYmx1ZTojMzg4YmZkOy0tZ3JlZW46IzNmYjk1MDstLXJlZDojZjg1MTQ5OwogIC0tYW1iZXI6I2QyOTkyMjstLXB1cnBsZTojYmM4Y2ZmOy0tY3lhbjojNzljMGZmOwogIC0tZm9udDonQ29uc29sYXMnLCdTRiBNb25vJywnRmlyYSBDb2RlJyxtb25vc3BhY2U7Cn0KYm9keXtiYWNrZ3JvdW5kOnZhcigtLWJnKTtjb2xvcjp2YXIoLS10ZXh0KTtmb250LWZhbWlseTp2YXIoLS1mb250KTtmb250LXNpemU6MTJweDttaW4taGVpZ2h0OjEwMHZofQovKiBMQVlPVVQgKi8KLnRvcGJhcntiYWNrZ3JvdW5kOnZhcigtLWJnMik7Ym9yZGVyLWJvdHRvbToxcHggc29saWQgdmFyKC0tYm9yZGVyKTtkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDoxMnB4O3BhZGRpbmc6OHB4IDE0cHg7aGVpZ2h0OjQycHg7cG9zaXRpb246c3RpY2t5O3RvcDowO3otaW5kZXg6MTB9Ci5sb2dve2NvbG9yOnZhcigtLWN5YW4pO2ZvbnQtc2l6ZToxNHB4O2ZvbnQtd2VpZ2h0OjcwMDtsZXR0ZXItc3BhY2luZzouMDVlbX0KLmxvZ28gc3Bhbntjb2xvcjp2YXIoLS10ZXh0Myk7Zm9udC13ZWlnaHQ6NDAwfQouYmFkZ2V7cGFkZGluZzoycHggOHB4O2JvcmRlci1yYWRpdXM6MTBweDtmb250LXNpemU6MTBweDtmb250LXdlaWdodDo3MDA7bGV0dGVyLXNwYWNpbmc6LjA2ZW19Ci5iYWRnZS5va3tiYWNrZ3JvdW5kOiMwZDJhMGQ7Y29sb3I6dmFyKC0tZ3JlZW4pO2JvcmRlcjoxcHggc29saWQgIzJlYTA0MzYwfQouYmFkZ2Uud2FybntiYWNrZ3JvdW5kOiMyYTFhMDA7Y29sb3I6dmFyKC0tYW1iZXIpO2JvcmRlcjoxcHggc29saWQgI2QyOTkyMjYwfQouYmFkZ2UuZmF1bHR7YmFja2dyb3VuZDojMmEwYTBhO2NvbG9yOnZhcigtLXJlZCk7Ym9yZGVyOjFweCBzb2xpZCAjZjg1MTQ5NjB9Ci50cnttYXJnaW4tbGVmdDphdXRvO2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjEwcHh9Ci5zaW10aW1le2NvbG9yOnZhcigtLXRleHQzKTtmb250LXNpemU6MTFweH0KI2J0bi1ydW57cGFkZGluZzo0cHggMTRweDtib3JkZXItcmFkaXVzOjZweDtib3JkZXI6MXB4IHNvbGlkIHZhcigtLWJsdWUpO2JhY2tncm91bmQ6IzFhMmU0YTtjb2xvcjp2YXIoLS1jeWFuKTtmb250LWZhbWlseTp2YXIoLS1mb250KTtmb250LXNpemU6MTFweDtjdXJzb3I6cG9pbnRlcn0KI2J0bi1ydW46aG92ZXJ7YmFja2dyb3VuZDojMjEzYTVhfQoubGF5b3V0e2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6MjEwcHggMWZyIDIyMHB4O2dhcDowO21pbi1oZWlnaHQ6Y2FsYygxMDB2aCAtIDcycHgpfQovKiBMRUZUICovCi5scGFuZWx7YmFja2dyb3VuZDp2YXIoLS1iZzIpO2JvcmRlci1yaWdodDoxcHggc29saWQgdmFyKC0tYm9yZGVyKTtwYWRkaW5nOjEycHg7b3ZlcmZsb3cteTphdXRvfQoucHRpdGxle2NvbG9yOnZhcigtLXRleHQzKTtmb250LXNpemU6OXB4O2ZvbnQtd2VpZ2h0OjcwMDtsZXR0ZXItc3BhY2luZzouMTJlbTt0ZXh0LXRyYW5zZm9ybTp1cHBlcmNhc2U7bWFyZ2luLWJvdHRvbToxMHB4O3BhZGRpbmctYm90dG9tOjVweDtib3JkZXItYm90dG9tOjFweCBzb2xpZCB2YXIoLS1ib3JkZXIpfQouY2d7bWFyZ2luLWJvdHRvbToxNHB4fQouY2xhYmVse2NvbG9yOnZhcigtLXRleHQyKTtmb250LXNpemU6MTBweDttYXJnaW4tYm90dG9tOjRweDtkaXNwbGF5OmJsb2NrfQouYnRue2Rpc3BsYXk6YmxvY2s7d2lkdGg6MTAwJTtwYWRkaW5nOjVweCA5cHg7Ym9yZGVyLXJhZGl1czo1cHg7Ym9yZGVyOjFweCBzb2xpZCB2YXIoLS1ib3JkZXIyKTtiYWNrZ3JvdW5kOnZhcigtLWJnMyk7Y29sb3I6dmFyKC0tdGV4dCk7Zm9udC1mYW1pbHk6dmFyKC0tZm9udCk7Zm9udC1zaXplOjEwcHg7Y3Vyc29yOnBvaW50ZXI7bWFyZ2luLWJvdHRvbTozcHg7dGV4dC1hbGlnbjpsZWZ0O3RyYW5zaXRpb246YmFja2dyb3VuZCAuMXMsYm9yZGVyLWNvbG9yIC4xc30KLmJ0bjpob3ZlcntiYWNrZ3JvdW5kOnZhcigtLWJnNCk7Ym9yZGVyLWNvbG9yOnZhcigtLWJsdWUpfQouYnRuLmFjdGl2ZXtiYWNrZ3JvdW5kOiMxYTJlNGE7Ym9yZGVyLWNvbG9yOnZhcigtLWJsdWUpO2NvbG9yOnZhcigtLWN5YW4pfQouYnRuLmRhbmdlcntib3JkZXItY29sb3I6I2RhMzYzMztjb2xvcjp2YXIoLS1yZWQpfQouYnRuLmRhbmdlcjpob3ZlcntiYWNrZ3JvdW5kOiMyZTEwMTB9Ci5idG4uc3VjY2Vzc3tib3JkZXItY29sb3I6IzJlYTA0Mztjb2xvcjp2YXIoLS1ncmVlbil9Ci5zcntkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDo2cHg7bWFyZ2luLWJvdHRvbTo1cHh9Ci5zciBsYWJlbHtjb2xvcjp2YXIoLS10ZXh0Mik7Zm9udC1zaXplOjEwcHg7d2lkdGg6NzJweDtmbGV4LXNocmluazowfQouc3IgaW5wdXRbdHlwZT1yYW5nZV17ZmxleDoxO2FjY2VudC1jb2xvcjp2YXIoLS1ibHVlKX0KLnNyIHNwYW57Y29sb3I6dmFyKC0tY3lhbik7Zm9udC1zaXplOjEwcHg7d2lkdGg6MzhweDt0ZXh0LWFsaWduOnJpZ2h0O2ZsZXgtc2hyaW5rOjB9Ci5mYntkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDo2cHg7cGFkZGluZzo0cHggN3B4O2JvcmRlci1yYWRpdXM6NHB4O2JvcmRlcjoxcHggc29saWQgdmFyKC0tYm9yZGVyKTtiYWNrZ3JvdW5kOnZhcigtLWJnMyk7Y29sb3I6dmFyKC0tdGV4dDIpO2ZvbnQtZmFtaWx5OnZhcigtLWZvbnQpO2ZvbnQtc2l6ZToxMHB4O2N1cnNvcjpwb2ludGVyO21hcmdpbi1ib3R0b206M3B4O3dpZHRoOjEwMCV9Ci5mYjpob3Zlcntib3JkZXItY29sb3I6dmFyKC0tcmVkKTtjb2xvcjp2YXIoLS1yZWQpfQouZmIub257YmFja2dyb3VuZDojMmEwYTBhO2JvcmRlci1jb2xvcjp2YXIoLS1yZWQpO2NvbG9yOnZhcigtLXJlZCl9Ci5mZHt3aWR0aDo2cHg7aGVpZ2h0OjZweDtib3JkZXItcmFkaXVzOjUwJTtiYWNrZ3JvdW5kOnZhcigtLWJvcmRlcjIpO2ZsZXgtc2hyaW5rOjB9Ci5mYi5vbiAuZmR7YmFja2dyb3VuZDp2YXIoLS1yZWQpfQoubW9kZXN7ZGlzcGxheTpmbGV4O2dhcDo0cHg7bWFyZ2luLWJvdHRvbTo2cHh9Ci5tYntmbGV4OjE7cGFkZGluZzo0cHg7Ym9yZGVyLXJhZGl1czo0cHg7Ym9yZGVyOjFweCBzb2xpZCB2YXIoLS1ib3JkZXIpO2JhY2tncm91bmQ6dmFyKC0tYmczKTtjb2xvcjp2YXIoLS10ZXh0Myk7Zm9udC1mYW1pbHk6dmFyKC0tZm9udCk7Zm9udC1zaXplOjEwcHg7Y3Vyc29yOnBvaW50ZXI7dGV4dC1hbGlnbjpjZW50ZXJ9Ci5tYi5hY3RpdmV7YmFja2dyb3VuZDojMWEyZTRhO2JvcmRlci1jb2xvcjp2YXIoLS1ibHVlKTtjb2xvcjp2YXIoLS1jeWFuKX0KLyogTUFJTiAqLwoubWFpbntwYWRkaW5nOjEwcHg7b3ZlcmZsb3cteTphdXRvO2Rpc3BsYXk6ZmxleDtmbGV4LWRpcmVjdGlvbjpjb2x1bW47Z2FwOjEwcHh9Ci5zdGl0bGV7Y29sb3I6dmFyKC0tdGV4dDMpO2ZvbnQtc2l6ZTo5cHg7Zm9udC13ZWlnaHQ6NzAwO2xldHRlci1zcGFjaW5nOi4xZW07dGV4dC10cmFuc2Zvcm06dXBwZXJjYXNlO21hcmdpbi1ib3R0b206N3B4fQovKiBDRUxMUyAqLwouY2dyaWR7ZGlzcGxheTpncmlkO2dyaWQtdGVtcGxhdGUtY29sdW1uczpyZXBlYXQoNywxZnIpO2dhcDo1cHh9Ci5jY3tiYWNrZ3JvdW5kOnZhcigtLWJnMik7Ym9yZGVyOjFweCBzb2xpZCB2YXIoLS1ib3JkZXIpO2JvcmRlci1yYWRpdXM6N3B4O3BhZGRpbmc6NnB4O3Bvc2l0aW9uOnJlbGF0aXZlO3RyYW5zaXRpb246Ym9yZGVyLWNvbG9yIC4ycyxiYWNrZ3JvdW5kIC4yc30KLmNjLmJhbHtib3JkZXItY29sb3I6dmFyKC0tYW1iZXIpIWltcG9ydGFudDtiYWNrZ3JvdW5kOiMxYTEyMDB9Ci5jYy5vdntib3JkZXItY29sb3I6dmFyKC0tcmVkKSFpbXBvcnRhbnQ7YmFja2dyb3VuZDojMWEwNTA1fQouY2MudXZ7Ym9yZGVyLWNvbG9yOnZhcigtLXB1cnBsZSkhaW1wb3J0YW50O2JhY2tncm91bmQ6IzBmMDgyMH0KLmNpZHh7Y29sb3I6dmFyKC0tdGV4dDMpO2ZvbnQtc2l6ZTo5cHg7bWFyZ2luLWJvdHRvbToycHh9Ci5jbXZ7Zm9udC1zaXplOjEycHg7Zm9udC13ZWlnaHQ6NzAwO2NvbG9yOnZhcigtLXRleHQpfQouY212Lnd7Y29sb3I6dmFyKC0tYW1iZXIpfS5jbXYuZHtjb2xvcjp2YXIoLS1yZWQpfQouY2J3e2hlaWdodDozcHg7YmFja2dyb3VuZDp2YXIoLS1iZzQpO2JvcmRlci1yYWRpdXM6MnB4O21hcmdpbi10b3A6NHB4O292ZXJmbG93OmhpZGRlbn0KLmNie2hlaWdodDoxMDAlO2JvcmRlci1yYWRpdXM6MnB4O3RyYW5zaXRpb246d2lkdGggLjNzLGJhY2tncm91bmQgLjNzfQouY2Z7cG9zaXRpb246YWJzb2x1dGU7dG9wOjNweDtyaWdodDo1cHg7Zm9udC1zaXplOjlweH0KLyogTUVUUklDUyAqLwoubXN1bXtkaXNwbGF5OmdyaWQ7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOnJlcGVhdCg0LDFmcik7Z2FwOjdweH0KLm1je2JhY2tncm91bmQ6dmFyKC0tYmcyKTtib3JkZXI6MXB4IHNvbGlkIHZhcigtLWJvcmRlcik7Ym9yZGVyLXJhZGl1czo3cHg7cGFkZGluZzo5cHh9Ci5tbHtjb2xvcjp2YXIoLS10ZXh0Myk7Zm9udC1zaXplOjlweDtsZXR0ZXItc3BhY2luZzouMDVlbTt0ZXh0LXRyYW5zZm9ybTp1cHBlcmNhc2U7bWFyZ2luLWJvdHRvbTozcHh9Ci5tdntmb250LXNpemU6MTdweDtmb250LXdlaWdodDo3MDB9Ci5tdi5va3tjb2xvcjp2YXIoLS1ncmVlbil9Lm12Lnd7Y29sb3I6dmFyKC0tYW1iZXIpfS5tdi5ke2NvbG9yOnZhcigtLXJlZCl9Ci5tdXtmb250LXNpemU6OXB4O2NvbG9yOnZhcigtLXRleHQzKTttYXJnaW4tdG9wOjFweH0KLyogV0FWRSAqLwoud3d7YmFja2dyb3VuZDp2YXIoLS1iZzIpO2JvcmRlcjoxcHggc29saWQgdmFyKC0tYm9yZGVyKTtib3JkZXItcmFkaXVzOjdweDtwYWRkaW5nOjlweH0KLndoe2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjEwcHg7bWFyZ2luLWJvdHRvbTo3cHg7ZmxleC13cmFwOndyYXB9Ci53bGVne2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjRweDtmb250LXNpemU6OXB4O2NvbG9yOnZhcigtLXRleHQyKX0KLndke3dpZHRoOjEwcHg7aGVpZ2h0OjJweDtib3JkZXItcmFkaXVzOjFweH0KLyogQ09OVEFDVE9SUyAqLwouY3Jvd3tkaXNwbGF5OmdyaWQ7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOnJlcGVhdCg1LDFmcik7Z2FwOjZweH0KLmNjYXJke2JhY2tncm91bmQ6dmFyKC0tYmcyKTtib3JkZXI6MXB4IHNvbGlkIHZhcigtLWJvcmRlcik7Ym9yZGVyLXJhZGl1czo3cHg7cGFkZGluZzo3cHg7dGV4dC1hbGlnbjpjZW50ZXJ9Ci5jaWNve2ZvbnQtc2l6ZToxOHB4O21hcmdpbi1ib3R0b206M3B4fQouY25hbWV7Y29sb3I6dmFyKC0tdGV4dDMpO2ZvbnQtc2l6ZTo5cHg7bGV0dGVyLXNwYWNpbmc6LjA1ZW07dGV4dC10cmFuc2Zvcm06dXBwZXJjYXNlfQouY3N0e2ZvbnQtc2l6ZToxMHB4O2ZvbnQtd2VpZ2h0OjcwMDttYXJnaW4tdG9wOjJweH0KLmNzdC5vcGVue2NvbG9yOnZhcigtLXJlZCl9LmNzdC5jbG9zZWR7Y29sb3I6dmFyKC0tZ3JlZW4pfS5jc3QuYWN0aXZle2NvbG9yOnZhcigtLWFtYmVyKX0KLyogQUxFUlRTICovCi5hbG9ne21heC1oZWlnaHQ6MTMwcHg7b3ZlcmZsb3cteTphdXRvO2JhY2tncm91bmQ6dmFyKC0tYmcyKTtib3JkZXI6MXB4IHNvbGlkIHZhcigtLWJvcmRlcik7Ym9yZGVyLXJhZGl1czo3cHg7cGFkZGluZzo3cHh9Ci5hcntkaXNwbGF5OmZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2dhcDo3cHg7cGFkZGluZzozcHggNXB4O2JvcmRlci1yYWRpdXM6M3B4O21hcmdpbi1ib3R0b206MnB4O2ZvbnQtc2l6ZToxMHB4fQouYXIuaW5mb3tiYWNrZ3JvdW5kOiMwYTFhMmE7Y29sb3I6dmFyKC0tY3lhbil9Ci5hci53YXJue2JhY2tncm91bmQ6IzFhMTIwMDtjb2xvcjp2YXIoLS1hbWJlcil9Ci5hci5mYXVsdHtiYWNrZ3JvdW5kOiMxYTA1MDU7Y29sb3I6dmFyKC0tcmVkKX0KLmF0e2NvbG9yOnZhcigtLXRleHQzKTtmb250LXNpemU6OXB4O3dpZHRoOjM0cHg7ZmxleC1zaHJpbms6MH0KLyogUklHSFQgKi8KLnJwYW5lbHtiYWNrZ3JvdW5kOnZhcigtLWJnMik7Ym9yZGVyLWxlZnQ6MXB4IHNvbGlkIHZhcigtLWJvcmRlcik7cGFkZGluZzoxMnB4O292ZXJmbG93LXk6YXV0b30KLmd3e2JhY2tncm91bmQ6dmFyKC0tYmczKTtib3JkZXItcmFkaXVzOjdweDtwYWRkaW5nOjlweDttYXJnaW4tYm90dG9tOjhweH0KLmd0e2NvbG9yOnZhcigtLXRleHQzKTtmb250LXNpemU6OXB4O2xldHRlci1zcGFjaW5nOi4wOGVtO3RleHQtdHJhbnNmb3JtOnVwcGVyY2FzZTttYXJnaW4tYm90dG9tOjVweH0KLmdiZ3toZWlnaHQ6N3B4O2JhY2tncm91bmQ6dmFyKC0tYmc0KTtib3JkZXItcmFkaXVzOjRweDtvdmVyZmxvdzpoaWRkZW47bWFyZ2luLWJvdHRvbTozcHh9Ci5nZmlsbHtoZWlnaHQ6MTAwJTtib3JkZXItcmFkaXVzOjRweDt0cmFuc2l0aW9uOndpZHRoIC40cyxiYWNrZ3JvdW5kIC40c30KLmd2YWx7Zm9udC1zaXplOjE2cHg7Zm9udC13ZWlnaHQ6NzAwO2NvbG9yOnZhcigtLXRleHQpfQouZ3N1Yntmb250LXNpemU6OXB4O2NvbG9yOnZhcigtLXRleHQzKTttYXJnaW4tdG9wOjFweH0KLnRncmlke2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6MWZyIDFmcjtnYXA6NXB4O21hcmdpbi10b3A6NXB4fQoudGNlbGx7YmFja2dyb3VuZDp2YXIoLS1iZzQpO2JvcmRlci1yYWRpdXM6NHB4O3BhZGRpbmc6NXB4O3RleHQtYWxpZ246Y2VudGVyfQoudGNsYmx7Y29sb3I6dmFyKC0tdGV4dDMpO2ZvbnQtc2l6ZTo5cHh9Ci50Y3ZhbHtmb250LXNpemU6MTJweDtmb250LXdlaWdodDo3MDB9Ci5mc217Zm9udC1zaXplOjExcHg7bGluZS1oZWlnaHQ6MS45O2NvbG9yOnZhcigtLXRleHQyKX0KLmJtYXB7ZGlzcGxheTpncmlkO2dyaWQtdGVtcGxhdGUtY29sdW1uczpyZXBlYXQoNywxZnIpO2dhcDozcHg7bWFyZ2luLXRvcDo1cHh9Ci5ibWN7aGVpZ2h0OjE1cHg7Ym9yZGVyLXJhZGl1czozcHg7YmFja2dyb3VuZDp2YXIoLS1iZzQpO2ZvbnQtc2l6ZTo4cHg7ZGlzcGxheTpmbGV4O2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2NvbG9yOnZhcigtLXRleHQzKTt0cmFuc2l0aW9uOmJhY2tncm91bmQgLjJzLGNvbG9yIC4yc30KLyogQk9UVE9NICovCi5ib3R7YmFja2dyb3VuZDp2YXIoLS1iZzIpO2JvcmRlci10b3A6MXB4IHNvbGlkIHZhcigtLWJvcmRlcik7ZGlzcGxheTpmbGV4O2FsaWduLWl0ZW1zOmNlbnRlcjtnYXA6MTRweDtwYWRkaW5nOjAgMTRweDtoZWlnaHQ6MjhweDtmb250LXNpemU6MTBweDtjb2xvcjp2YXIoLS10ZXh0Myl9Ci5zZG90e3dpZHRoOjZweDtoZWlnaHQ6NnB4O2JvcmRlci1yYWRpdXM6NTAlO2Rpc3BsYXk6aW5saW5lLWJsb2NrO21hcmdpbi1yaWdodDozcHh9Ci5zZG90Lm9re2JhY2tncm91bmQ6dmFyKC0tZ3JlZW4pfS5zZG90Lnd7YmFja2dyb3VuZDp2YXIoLS1hbWJlcil9LnNkb3QuZntiYWNrZ3JvdW5kOnZhcigtLXJlZCl9Ci5icnttYXJnaW4tbGVmdDphdXRvO2Rpc3BsYXk6ZmxleDtnYXA6MTRweH0KOjotd2Via2l0LXNjcm9sbGJhcnt3aWR0aDo0cHh9Cjo6LXdlYmtpdC1zY3JvbGxiYXItdGh1bWJ7YmFja2dyb3VuZDp2YXIoLS1ib3JkZXIyKTtib3JkZXItcmFkaXVzOjJweH0KPC9zdHlsZT4KPC9oZWFkPgo8Ym9keT4KPCEtLSBUT1BCQVIgLS0+CjxkaXYgY2xhc3M9InRvcGJhciI+CiAgPGRpdiBjbGFzcz0ibG9nbyI+Qk1TPHNwYW4+c2ltPC9zcGFuPiDCtyAxNFMyUCBMaS1pb248L2Rpdj4KICA8c3BhbiBpZD0idG9wLWJhZGdlIiBjbGFzcz0iYmFkZ2Ugb2siPklETEU8L3NwYW4+CiAgPHNwYW4gaWQ9InRvcC1sYmwiIHN0eWxlPSJmb250LXNpemU6MTFweDtjb2xvcjp2YXIoLS10ZXh0MikiPlBhY2sgcmVhZHk8L3NwYW4+CiAgPGRpdiBjbGFzcz0idHIiPgogICAgPHNwYW4gY2xhc3M9InNpbXRpbWUiPnQgPSA8c3BhbiBpZD0ic2ltLXQiPjAuMDwvc3Bhbj5zPC9zcGFuPgogICAgPGJ1dHRvbiBpZD0iYnRuLXJ1biIgb25jbGljaz0idG9nZ2xlUnVuKCkiPuKPuCBQYXVzZTwvYnV0dG9uPgogIDwvZGl2Pgo8L2Rpdj4KPGRpdiBjbGFzcz0ibGF5b3V0Ij4KPCEtLSBMRUZUIFBBTkVMIC0tPgo8ZGl2IGNsYXNzPSJscGFuZWwiPgogIDxkaXYgY2xhc3M9InB0aXRsZSI+U2ltdWxhdGlvbiBDb250cm9sPC9kaXY+CiAgPGRpdiBjbGFzcz0iY2ciPgogICAgPGRpdiBjbGFzcz0ic3RpdGxlIj5Nb2RlPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJtb2RlcyI+CiAgICAgIDxidXR0b24gY2xhc3M9Im1iIGFjdGl2ZSIgaWQ9Im1iLW1hbnVhbCIgb25jbGljaz0ic2V0TW9kZSgnbWFudWFsJykiPk1hbnVhbDwvYnV0dG9uPgogICAgICA8YnV0dG9uIGNsYXNzPSJtYiIgaWQ9Im1iLWRyaXZlIiBvbmNsaWNrPSJzZXRNb2RlKCdkcml2ZScpIj5Ecml2ZSBjeWNsZTwvYnV0dG9uPgogICAgPC9kaXY+CiAgPC9kaXY+CiAgPGRpdiBjbGFzcz0iY2ciPgogICAgPGRpdiBjbGFzcz0ic3RpdGxlIj5QYXJhbWV0ZXJzPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJzciI+PGxhYmVsPkNoYXJnZSBJPC9sYWJlbD48aW5wdXQgdHlwZT0icmFuZ2UiIG1pbj0iMCIgbWF4PSIxMDAiIHZhbHVlPSIwIiBpZD0ic2wtY2kiIG9uaW5wdXQ9InVwZCgnY2knLHRoaXMudmFsdWUpIj48c3BhbiBpZD0ibGJsLWNpIj4wIEE8L3NwYW4+PC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJzciI+PGxhYmVsPkxvYWQgSTwvbGFiZWw+PGlucHV0IHR5cGU9InJhbmdlIiBtaW49IjAiIG1heD0iMTUwIiB2YWx1ZT0iMCIgaWQ9InNsLWxpIiBvbmlucHV0PSJ1cGQoJ2xpJyx0aGlzLnZhbHVlKSI+PHNwYW4gaWQ9ImxibC1saSI+MCBBPC9zcGFuPjwvZGl2PgogICAgPGRpdiBjbGFzcz0ic3IiPjxsYWJlbD5BbWJpZW50IFQ8L2xhYmVsPjxpbnB1dCB0eXBlPSJyYW5nZSIgbWluPSItMjAiIG1heD0iNjAiIHZhbHVlPSIyNSIgaWQ9InNsLWF0IiBvbmlucHV0PSJ1cGQoJ2F0Jyx0aGlzLnZhbHVlKSI+PHNwYW4gaWQ9ImxibC1hdCI+MjXCsEM8L3NwYW4+PC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJzciI+PGxhYmVsPkNlbGwgaW1iYWwuPC9sYWJlbD48aW5wdXQgdHlwZT0icmFuZ2UiIG1pbj0iMCIgbWF4PSIyMDAiIHZhbHVlPSIyMCIgaWQ9InNsLWNkIiBvbmlucHV0PSJ1cGQoJ2NkJyx0aGlzLnZhbHVlKSI+PHNwYW4gaWQ9ImxibC1jZCI+MjBtVjwvc3Bhbj48L2Rpdj4KICA8L2Rpdj4KICA8ZGl2IGNsYXNzPSJjZyI+CiAgICA8ZGl2IGNsYXNzPSJzdGl0bGUiPkZhdWx0IGluamVjdGlvbjwvZGl2PgogICAgPGJ1dHRvbiBjbGFzcz0iZmIiIGlkPSJmaS1vdiIgb25jbGljaz0iaW5qKCdvdicpIj48ZGl2IGNsYXNzPSJmZCI+PC9kaXY+T3ZlcnZvbHRhZ2UgQzM8L2J1dHRvbj4KICAgIDxidXR0b24gY2xhc3M9ImZiIiBpZD0iZmktdXYiIG9uY2xpY2s9ImluaigndXYnKSI+PGRpdiBjbGFzcz0iZmQiPjwvZGl2PlVuZGVydm9sdGFnZSBDMTE8L2J1dHRvbj4KICAgIDxidXR0b24gY2xhc3M9ImZiIiBpZD0iZmktb2MiIG9uY2xpY2s9Imluaignb2MnKSI+PGRpdiBjbGFzcz0iZmQiPjwvZGl2Pk92ZXJjdXJyZW50IHBhY2s8L2J1dHRvbj4KICAgIDxidXR0b24gY2xhc3M9ImZiIiBpZD0iZmktc2MiIG9uY2xpY2s9Imluaignc2MnKSI+PGRpdiBjbGFzcz0iZmQiPjwvZGl2PlNob3J0IGNpcmN1aXQ8L2J1dHRvbj4KICAgIDxidXR0b24gY2xhc3M9ImZiIiBpZD0iZmktb3QiIG9uY2xpY2s9Imluaignb3QnKSI+PGRpdiBjbGFzcz0iZmQiPjwvZGl2Pk92ZXJ0ZW1wZXJhdHVyZTwvYnV0dG9uPgogICAgPGJ1dHRvbiBjbGFzcz0iZmIiIGlkPSJmaS1vcCIgb25jbGljaz0iaW5qKCdvcCcpIj48ZGl2IGNsYXNzPSJmZCI+PC9kaXY+T3BlbiBjaXJjdWl0IEM3PC9idXR0b24+CiAgICA8YnV0dG9uIGNsYXNzPSJidG4gZGFuZ2VyIiBvbmNsaWNrPSJjbGVhckYoKSIgc3R5bGU9Im1hcmdpbi10b3A6NXB4Ij7inJUgQ2xlYXIgYWxsIGZhdWx0czwvYnV0dG9uPgogIDwvZGl2PgogIDxkaXYgY2xhc3M9ImNnIj4KICAgIDxkaXYgY2xhc3M9InN0aXRsZSI+Q29udGFjdG9yczwvZGl2PgogICAgPGJ1dHRvbiBjbGFzcz0iYnRuIiBpZD0iYnRuLW5lZyIgb25jbGljaz0idG9nQygnbmVnJykiPk5FRyBjb250YWN0b3I8L2J1dHRvbj4KICAgIDxidXR0b24gY2xhc3M9ImJ0biIgaWQ9ImJ0bi1wcmUiIG9uY2xpY2s9InRvZ0MoJ3ByZScpIj5QcmVjaGFyZ2UgcmVsYXk8L2J1dHRvbj4KICAgIDxidXR0b24gY2xhc3M9ImJ0biIgaWQ9ImJ0bi1wb3MiIG9uY2xpY2s9InRvZ0MoJ3BvcycpIj5QT1MgY29udGFjdG9yPC9idXR0b24+CiAgPC9kaXY+CiAgPGRpdiBjbGFzcz0iY2ciPgogICAgPGJ1dHRvbiBjbGFzcz0iYnRuIHN1Y2Nlc3MiIG9uY2xpY2s9ImF1dG9QcmUoKSI+4pa2IEF1dG8gcHJlY2hhcmdlIHNlcS48L2J1dHRvbj4KICAgIDxidXR0b24gY2xhc3M9ImJ0biIgb25jbGljaz0icmVzZXRTaW0oKSIgc3R5bGU9Im1hcmdpbi10b3A6M3B4Ij7ihrogUmVzZXQgc2ltdWxhdGlvbjwvYnV0dG9uPgogIDwvZGl2Pgo8L2Rpdj4KPCEtLSBNQUlOIC0tPgo8ZGl2IGNsYXNzPSJtYWluIj4KICA8ZGl2PgogICAgPGRpdiBjbGFzcz0ic3RpdGxlIj5DZWxsIHZvbHRhZ2VzIOKAlCAxNCBzZXJpZXMgY2VsbHM8L2Rpdj4KICAgIDxkaXYgY2xhc3M9ImNncmlkIiBpZD0iY2dyaWQiPjwvZGl2PgogIDwvZGl2PgogIDxkaXY+CiAgICA8ZGl2IGNsYXNzPSJzdGl0bGUiPlBhY2sgbWV0cmljczwvZGl2PgogICAgPGRpdiBjbGFzcz0ibXN1bSI+CiAgICAgIDxkaXYgY2xhc3M9Im1jIj48ZGl2IGNsYXNzPSJtbCI+UGFjayB2b2x0YWdlPC9kaXY+PGRpdiBjbGFzcz0ibXYiIGlkPSJtLXZwIj7igJQ8L2Rpdj48ZGl2IGNsYXNzPSJtdSI+ViB0b3RhbDwvZGl2PjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJtYyI+PGRpdiBjbGFzcz0ibWwiPlBhY2sgY3VycmVudDwvZGl2PjxkaXYgY2xhc3M9Im12IiBpZD0ibS1pcCI+4oCUPC9kaXY+PGRpdiBjbGFzcz0ibXUiPkEgICgrIGNoYXJnZSk8L2Rpdj48L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0ibWMiPjxkaXYgY2xhc3M9Im1sIj5DZWxsIGRlbHRhPC9kaXY+PGRpdiBjbGFzcz0ibXYiIGlkPSJtLWRsIj7igJQ8L2Rpdj48ZGl2IGNsYXNzPSJtdSI+bVYgbWF44oiSbWluPC9kaXY+PC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9Im1jIj48ZGl2IGNsYXNzPSJtbCI+QmFsYW5jaW5nPC9kaXY+PGRpdiBjbGFzcz0ibXYiIGlkPSJtLWJsIj7igJQ8L2Rpdj48ZGl2IGNsYXNzPSJtdSI+Y2VsbHMgYWN0aXZlPC9kaXY+PC9kaXY+CiAgICA8L2Rpdj4KICA8L2Rpdj4KICA8ZGl2IGNsYXNzPSJ3dyI+CiAgICA8ZGl2IGNsYXNzPSJ3aCI+CiAgICAgIDxzcGFuIGNsYXNzPSJzdGl0bGUiIHN0eWxlPSJtYXJnaW46MCI+U2lnbmFsIHRyYWNlPC9zcGFuPgogICAgICA8ZGl2IGNsYXNzPSJ3bGVnIj48ZGl2IGNsYXNzPSJ3ZCIgc3R5bGU9ImJhY2tncm91bmQ6Izc5YzBmZiI+PC9kaXY+VmNlbGwgYXZnPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9IndsZWciPjxkaXYgY2xhc3M9IndkIiBzdHlsZT0iYmFja2dyb3VuZDojM2ZiOTUwIj48L2Rpdj5TT0MgbWFwcGVkPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9IndsZWciPjxkaXYgY2xhc3M9IndkIiBzdHlsZT0iYmFja2dyb3VuZDojZDI5OTIyIj48L2Rpdj5JIHBhY2s8L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0id2xlZyI+PGRpdiBjbGFzcz0id2QiIHN0eWxlPSJiYWNrZ3JvdW5kOiNmODUxNDkiPjwvZGl2PlZjZWxsIG1heDwvZGl2PgogICAgPC9kaXY+CiAgICA8Y2FudmFzIGlkPSJ3YyIgc3R5bGU9IndpZHRoOjEwMCU7aGVpZ2h0OjkwcHg7ZGlzcGxheTpibG9jaztiYWNrZ3JvdW5kOiMwZDExMTc7Ym9yZGVyLXJhZGl1czo0cHgiPjwvY2FudmFzPgogIDwvZGl2PgogIDxkaXY+CiAgICA8ZGl2IGNsYXNzPSJzdGl0bGUiPkNvbnRhY3RvciAmIHByZWNoYXJnZTwvZGl2PgogICAgPGRpdiBjbGFzcz0iY3JvdyI+CiAgICAgIDxkaXYgY2xhc3M9ImNjYXJkIj48ZGl2IGNsYXNzPSJjaWNvIj7imqE8L2Rpdj48ZGl2IGNsYXNzPSJjbmFtZSI+TkVHPC9kaXY+PGRpdiBjbGFzcz0iY3N0IG9wZW4iIGlkPSJjcy1uZWciPk9QRU48L2Rpdj48L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0iY2NhcmQiPjxkaXYgY2xhc3M9ImNpY28iPvCflIM8L2Rpdj48ZGl2IGNsYXNzPSJjbmFtZSI+UHJlY2hhcmdlPC9kaXY+PGRpdiBjbGFzcz0iY3N0IG9wZW4iIGlkPSJjcy1wcmUiPk9QRU48L2Rpdj48L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0iY2NhcmQiPjxkaXYgY2xhc3M9ImNpY28iPuKaoTwvZGl2PjxkaXYgY2xhc3M9ImNuYW1lIj5QT1M8L2Rpdj48ZGl2IGNsYXNzPSJjc3Qgb3BlbiIgaWQ9ImNzLXBvcyI+T1BFTjwvZGl2PjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJjY2FyZCI+PGRpdiBjbGFzcz0iY2ljbyI+8J+UizwvZGl2PjxkaXYgY2xhc3M9ImNuYW1lIj5PdXRwdXQ8L2Rpdj48ZGl2IGNsYXNzPSJjc3Qgb3BlbiIgaWQ9ImNzLW91dCI+RElTQ09OTkVDVEVEPC9kaXY+PC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9ImNjYXJkIj48ZGl2IGNsYXNzPSJjaWNvIj7wn5OKPC9kaXY+PGRpdiBjbGFzcz0iY25hbWUiPlByZSAlPC9kaXY+PGRpdiBjbGFzcz0iY3N0IiBpZD0iY3MtcGN0IiBzdHlsZT0iY29sb3I6dmFyKC0tY3lhbikiPjAlPC9kaXY+PC9kaXY+CiAgICA8L2Rpdj4KICA8L2Rpdj4KICA8ZGl2PgogICAgPGRpdiBjbGFzcz0ic3RpdGxlIj5BbGVydCBsb2c8L2Rpdj4KICAgIDxkaXYgY2xhc3M9ImFsb2ciIGlkPSJhbG9nIj4KICAgICAgPGRpdiBjbGFzcz0iYXIgaW5mbyI+PHNwYW4gY2xhc3M9ImF0Ij4wLjBzPC9zcGFuPkJNUyBTaW11bGF0b3IgaW5pdGlhbGl6ZWQg4oCUIDE0UzJQIExpLWlvbiA0MjAwLzMwMDBtViB0aHJlc2hvbGRzPC9kaXY+CiAgICA8L2Rpdj4KICA8L2Rpdj4KPC9kaXY+CjwhLS0gUklHSFQgUEFORUwgLS0+CjxkaXYgY2xhc3M9InJwYW5lbCI+CiAgPGRpdiBjbGFzcz0icHRpdGxlIj5TeXN0ZW0gZ2F1Z2VzPC9kaXY+CiAgPGRpdiBjbGFzcz0iZ3ciPgogICAgPGRpdiBjbGFzcz0iZ3QiPlN0YXRlIG9mIENoYXJnZTwvZGl2PgogICAgPGRpdiBjbGFzcz0iZ3ZhbCIgaWQ9Imctc29jIj43NSU8L2Rpdj4KICAgIDxkaXYgY2xhc3M9ImdiZyI+PGRpdiBjbGFzcz0iZ2ZpbGwiIGlkPSJnYi1zb2MiIHN0eWxlPSJ3aWR0aDo3NSU7YmFja2dyb3VuZDp2YXIoLS1ncmVlbikiPjwvZGl2PjwvZGl2PgogICAgPGRpdiBjbGFzcz0iZ3N1YiIgaWQ9Imctc29jLXN1YiI+Q291bG9tYiBjb3VudGluZzwvZGl2PgogIDwvZGl2PgogIDxkaXYgY2xhc3M9Imd3Ij4KICAgIDxkaXYgY2xhc3M9Imd0Ij5TdGF0ZSBvZiBIZWFsdGg8L2Rpdj4KICAgIDxkaXYgY2xhc3M9Imd2YWwiIGlkPSJnLXNvaCI+OTYlPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJnYmciPjxkaXYgY2xhc3M9ImdmaWxsIiBpZD0iZ2Itc29oIiBzdHlsZT0id2lkdGg6OTYlO2JhY2tncm91bmQ6IzM4OGJmZCI+PC9kaXY+PC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJnc3ViIj5DYXBhY2l0eSBlc3RpbWF0ZTwvZGl2PgogIDwvZGl2PgogIDxkaXYgY2xhc3M9Imd3Ij4KICAgIDxkaXYgY2xhc3M9Imd0Ij5QYWNrIHBvd2VyPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJndmFsIiBpZD0iZy1wd3IiPjAga1c8L2Rpdj4KICAgIDxkaXYgY2xhc3M9ImdiZyI+PGRpdiBjbGFzcz0iZ2ZpbGwiIGlkPSJnYi1wd3IiIHN0eWxlPSJ3aWR0aDowJTtiYWNrZ3JvdW5kOnZhcigtLXB1cnBsZSkiPjwvZGl2PjwvZGl2PgogICAgPGRpdiBjbGFzcz0iZ3N1YiI+UGVhayA0MCBrVzwvZGl2PgogIDwvZGl2PgogIDxkaXYgY2xhc3M9Imd3Ij4KICAgIDxkaXYgY2xhc3M9Imd0Ij5UZW1wZXJhdHVyZXM8L2Rpdj4KICAgIDxkaXYgY2xhc3M9InRncmlkIiBpZD0idGdyaWQiPjwvZGl2PgogIDwvZGl2PgogIDxkaXYgY2xhc3M9Imd3Ij4KICAgIDxkaXYgY2xhc3M9Imd0Ij5GU00gc3RhdGU8L2Rpdj4KICAgIDxkaXYgY2xhc3M9ImZzbSIgaWQ9ImZzbSI+PC9kaXY+CiAgPC9kaXY+CiAgPGRpdiBjbGFzcz0iZ3ciPgogICAgPGRpdiBjbGFzcz0iZ3QiPkJhbGFuY2luZyBoZWF0bWFwPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJibWFwIiBpZD0iYm1hcCI+PC9kaXY+CiAgPC9kaXY+CjwvZGl2Pgo8L2Rpdj4KPCEtLSBCT1RUT00gLS0+CjxkaXYgY2xhc3M9ImJvdCI+CiAgPHNwYW4+PHNwYW4gY2xhc3M9InNkb3Qgb2siPjwvc3Bhbj5TaW11bGF0b3IgcnVubmluZzwvc3Bhbj4KICA8c3Bhbj48c3BhbiBjbGFzcz0ic2RvdCBvayIgaWQ9ImJtcy1kb3QiPjwvc3Bhbj48c3BhbiBpZD0iYm1zLWZzbSI+RlNNOiBJRExFPC9zcGFuPjwvc3Bhbj4KICA8c3BhbiBpZD0iYm90LWZhdWx0cyIgc3R5bGU9ImNvbG9yOnZhcigtLXRleHQzKSI+Tm8gYWN0aXZlIGZhdWx0czwvc3Bhbj4KICA8ZGl2IGNsYXNzPSJiciI+CiAgICA8c3Bhbj5oYWxfc2ltLmMgwrcgMTRTMlAgwrcgNTAwbXMgdGljazwvc3Bhbj4KICAgIDxzcGFuIGlkPSJib3QtdGljayI+dGljayAjMDwvc3Bhbj4KICA8L2Rpdj4KPC9kaXY+CjxzY3JpcHQ+Ci8vID09PT09IENPTkZJRyA9PT09PQpjb25zdCBOPTE0LCBOVD00Owpjb25zdCBPVj00MjAwLCBVVj0zMDAwLCBCQUxfRD0xNTsKY29uc3QgT0NfTUE9MTUwMDAwLCBPVD02MCwgU0NfTUE9NTAwMDAwOwpjb25zdCBDQVBfQUg9MTA7Ci8vID09PT09IFNUQVRFID09PT09CmxldCBydW5uaW5nPXRydWUsIHNpbVQ9MCwgdGljaz0wLCBtb2RlPSdtYW51YWwnLCBkY1Q9MDsKbGV0IFM9ewogIGNlbGxzOiBBcnJheS5mcm9tKHtsZW5ndGg6Tn0sKF8saSk9PjM3MDAraSoxNSksCiAgc29jOjc1LCBzb2g6OTYsCiAgY3VyOjAsIGNpOjAsIGxpOjAsIGF0OjI1LCBjZDoyMCwKICB0ZW1wczpbMjgsMzAsMjcsMjldLAogIGNvbjp7bmVnOmZhbHNlLHByZTpmYWxzZSxwb3M6ZmFsc2V9LAogIHByZVY6MCwKICBmYXVsdHM6bmV3IFNldCgpLAogIGZzbTonSURMRScsCiAgYmFsOm5ldyBBcnJheShOKS5maWxsKGZhbHNlKSwKfTsKbGV0IFdIPXt2YTpbXSxzYzpbXSxpcDpbXSx2bTpbXX07CmNvbnN0IFdMPTE4MDsKLy8gPT09PT0gQlVJTEQgRE9NID09PT09CmZ1bmN0aW9uIGJ1aWxkQ2VsbHMoKXsKICBjb25zdCBnPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjZ3JpZCcpOyBnLmlubmVySFRNTD0nJzsKICBmb3IobGV0IGk9MDtpPE47aSsrKXsKICAgIGNvbnN0IGQ9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnZGl2Jyk7CiAgICBkLmlkPWBjJHtpfWA7IGQuY2xhc3NOYW1lPSdjYyc7CiAgICBkLmlubmVySFRNTD1gPGRpdiBjbGFzcz0iY2lkeCI+QyR7aSsxfTwvZGl2PjxkaXYgY2xhc3M9ImNtdiIgaWQ9InYke2l9Ij7igJQ8L2Rpdj48ZGl2IGNsYXNzPSJjYnciPjxkaXYgY2xhc3M9ImNiIiBpZD0iYiR7aX0iPjwvZGl2PjwvZGl2PjxkaXYgY2xhc3M9ImNmIiBpZD0iZiR7aX0iPjwvZGl2PmA7CiAgICBnLmFwcGVuZENoaWxkKGQpOwogIH0KfQpmdW5jdGlvbiBidWlsZFRlbXAoKXsKICBjb25zdCBnPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCd0Z3JpZCcpOyBnLmlubmVySFRNTD0nJzsKICBbJ05UQzEnLCdOVEMyJywnTlRDMycsJ05UQzQnXS5mb3JFYWNoKChuLGkpPT57CiAgICBnLmlubmVySFRNTCs9YDxkaXYgY2xhc3M9InRjZWxsIj48ZGl2IGNsYXNzPSJ0Y2xibCI+JHtufTwvZGl2PjxkaXYgY2xhc3M9InRjdmFsIiBpZD0idGMke2l9Ij7igJQ8L2Rpdj48L2Rpdj5gOwogIH0pOwp9CmZ1bmN0aW9uIGJ1aWxkQm1hcCgpewogIGNvbnN0IGc9ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2JtYXAnKTsgZy5pbm5lckhUTUw9Jyc7CiAgZm9yKGxldCBpPTA7aTxOO2krKykgZy5pbm5lckhUTUwrPWA8ZGl2IGNsYXNzPSJibWMiIGlkPSJibSR7aX0iPiR7aSsxfTwvZGl2PmA7Cn0KYnVpbGRDZWxscygpOyBidWlsZFRlbXAoKTsgYnVpbGRCbWFwKCk7Ci8vID09PT09IFNJTSBUSUNLID09PT09CmZ1bmN0aW9uIHRpY2tfc2ltKGR0KXsKICBjb25zdCBmPVMuZmF1bHRzOwogIGlmKG1vZGU9PT0nZHJpdmUnKSBkcml2ZUN5Y2xlKGR0KTsKICBsZXQgY21hPVMuY2kqMTAwMCwgbG1hPVMubGkqMTAwMDsKICBpZihmLmhhcygnc2MnKSkgbG1hPVNDX01BOwogIGlmKGYuaGFzKCdvYycpKSBsbWE9TWF0aC5tYXgobG1hLCBPQ19NQSoxLjEpOwogIFMuY3VyPWNtYS1sbWE7CiAgLy8gU09DIGNvdWxvbWIgY291bnRpbmcKICBjb25zdCBjYXBNcz1DQVBfQUgqMzYwMCoxMDAwOwogIFMuc29jKz1TLmN1cipkdC9jYXBNcyoxMDA7CiAgUy5zb2M9TWF0aC5tYXgoMCxNYXRoLm1pbigxMDAsUy5zb2MpKTsKICAvLyBjZWxsIHZvbHRhZ2UgbW9kZWwKICBjb25zdCBzb2NWPTIuOCsoUy5zb2MvMTAwKSoxLjY7CiAgY29uc3QgaVI9TWF0aC5hYnMoUy5jdXIpLzEwMDAqMC4wMDU7CiAgZm9yKGxldCBpPTA7aTxOO2krKyl7CiAgICBsZXQgYmFzZT1zb2NWKjEwMDArTWF0aC5zaW4oaSowLjcpKlMuY2QqMC41K01hdGguY29zKGkqMC4zKSpTLmNkKjAuMzsKICAgIGlmKFMuY3VyPjApIGJhc2UrPWlSKjEwMDA7IGVsc2UgYmFzZS09aVIqMTAwMDsKICAgIFMuY2VsbHNbaV0rPShiYXNlLVMuY2VsbHNbaV0pKjAuMDMrKE1hdGgucmFuZG9tKCktLjUpKjI7CiAgfQogIGlmKGYuaGFzKCdvdicpKSBTLmNlbGxzWzJdPTQyNTArTWF0aC5yYW5kb20oKSoxMDsKICBpZihmLmhhcygndXYnKSkgUy5jZWxsc1sxMF09Mjk1MCtNYXRoLnJhbmRvbSgpKjEwOwogIGlmKGYuaGFzKCdvcCcpKSBTLmNlbGxzWzZdPU1hdGgucmFuZG9tKCkqMzA7CiAgLy8gdGVtcHMKICBjb25zdCB0bD1NYXRoLmFicyhTLmN1cikvMTAwMCowLjg7CiAgZm9yKGxldCBpPTA7aTxOVDtpKyspewogICAgbGV0IHRndD1TLmF0K3RsK01hdGguc2luKGkrc2ltVCowLjAxKSoxLjU7CiAgICBpZihmLmhhcygnb3QnKSkgdGd0PTY1K2kqMjsKICAgIFMudGVtcHNbaV0rPSh0Z3QtUy50ZW1wc1tpXSkqMC4wNTsKICB9CiAgLy8gYmFsYW5jaW5nCiAgY29uc3QgYXZnPVMuY2VsbHMucmVkdWNlKChhLGIpPT5hK2IsMCkvTjsKICBmb3IobGV0IGk9MDtpPE47aSsrKXsKICAgIFMuYmFsW2ldPVMuY2VsbHNbaV0+YXZnK0JBTF9EOwogICAgaWYoUy5iYWxbaV0pIFMuY2VsbHNbaV0tPTAuNTsKICB9CiAgLy8gcHJlY2hhcmdlCiAgY29uc3QgcGFja1Y9Uy5jZWxscy5yZWR1Y2UoKGEsYik9PmErYiwwKTsKICBpZihTLmNvbi5wcmUmJiFTLmNvbi5wb3MpIFMucHJlVis9KHBhY2tWLVMucHJlVikqMC4wNTsKICBlbHNlIGlmKFMuY29uLnBvcykgUy5wcmVWPXBhY2tWOwogIGVsc2UgUy5wcmVWKj0wLjk3OwogIGZzbVVwZGF0ZSgpOwp9CmNvbnN0IGFjPXt9OwpmdW5jdGlvbiBmc21VcGRhdGUoKXsKICBjb25zdCBmPVMuZmF1bHRzOwogIGNvbnN0IG92PVMuY2VsbHMuc29tZSh2PT52Pj1PVik7CiAgY29uc3QgdXY9Uy5jZWxscy5zb21lKHY9PnY8PVVWJiZ2PjEwMCk7CiAgY29uc3Qgb2M9TWF0aC5hYnMoUy5jdXIpPk9DX01BOwogIGNvbnN0IHNjPWYuaGFzKCdzYycpOwogIGNvbnN0IG90PVMudGVtcHMuc29tZSh0PT50Pj1PVCk7CiAgY29uc3Qgb3A9Zi5oYXMoJ29wJyk7CiAgY29uc3QgcHJldj1TLmZzbTsKICBpZihzYykgUy5mc209J0ZBVUxUX1NIT1JUJzsKICBlbHNlIGlmKG92KSBTLmZzbT0nRkFVTFRfT1YnOwogIGVsc2UgaWYodXYpIFMuZnNtPSdGQVVMVF9VVic7CiAgZWxzZSBpZihvYykgUy5mc209J0ZBVUxUX09DJzsKICBlbHNlIGlmKG90KSBTLmZzbT0nRkFVTFRfT1QnOwogIGVsc2UgaWYob3ApIFMuZnNtPSdGQVVMVF9PUCc7CiAgZWxzZSBpZighUy5jb24ubmVnJiYhUy5jb24ucG9zKSBTLmZzbT0nSURMRSc7CiAgZWxzZSBpZihTLmNvbi5wcmUmJiFTLmNvbi5wb3MpewogICAgY29uc3QgcGN0PVMucHJlVi9TLmNlbGxzLnJlZHVjZSgoYSxiKT0+YStiLDApKjEwMDsKICAgIFMuZnNtPXBjdDw5NT8nUFJFQ0hBUkdFJzonUkVBRFknOwogIH0KICBlbHNlIGlmKFMuY29uLm5lZyYmUy5jb24ucG9zKXsKICAgIGlmKFMuY3VyPjUwMCkgUy5mc209J0NIQVJHSU5HJzsKICAgIGVsc2UgaWYoUy5jdXI8LTUwMCkgUy5mc209J0RJU0NIQVJHSU5HJzsKICAgIGVsc2UgUy5mc209J1JFQURZJzsKICB9CiAgZWxzZSBTLmZzbT0nSURMRSc7CiAgaWYocHJldiE9PVMuZnNtKSBhbGVydDIoUy5mc20uc3RhcnRzV2l0aCgnRkFVTFQnKT8nZmF1bHQnOidpbmZvJyxgRlNNOiAke3ByZXZ9IOKGkiAke1MuZnNtfWApOwogIGNvbnN0IG5vdz1zaW1UOwogIGlmKG92ICYmICghYWMub3Z8fG5vdy1hYy5vdj4yKSl7YWxlcnQyKCd3YXJuJyxgT3ZlcnZvbHRhZ2UgQyR7Uy5jZWxscy5maW5kSW5kZXgodj0+dj49T1YpKzF9ID0gJHtNYXRoLnJvdW5kKFMuY2VsbHMuZmluZCh2PT52Pj1PVikpfW1WYCk7YWMub3Y9bm93O30KICBpZih1diAmJiAoIWFjLnV2fHxub3ctYWMudXY+Mikpe2FsZXJ0Mignd2FybicsYFVuZGVydm9sdGFnZSBDJHtTLmNlbGxzLmZpbmRJbmRleCh2PT52PD1VViYmdj4xMDApKzF9ID0gJHtNYXRoLnJvdW5kKFMuY2VsbHMuZmluZCh2PT52PD1VViYmdj4xMDApKX1tVmApO2FjLnV2PW5vdzt9CiAgaWYob3QgJiYgKCFhYy5vdHx8bm93LWFjLm90PjMpKXthbGVydDIoJ2ZhdWx0JyxgT3ZlcnRlbXA6ICR7TWF0aC5yb3VuZChNYXRoLm1heCguLi5TLnRlbXBzKSl9wrBDYCk7YWMub3Q9bm93O30KICBpZihzYyAmJiAoIWFjLnNjfHxub3ctYWMuc2M+Mykpe2FsZXJ0MignZmF1bHQnLCdTaG9ydCBjaXJjdWl0IOKAlCBtYXggY3VycmVudCBkZXRlY3RlZCcpO2FjLnNjPW5vdzt9CiAgaWYob3AgJiYgKCFhYy5vcHx8bm93LWFjLm9wPjUpKXthbGVydDIoJ3dhcm4nLCdPcGVuIGNpcmN1aXQ6IEM3ID0gMG1WJyk7YWMub3A9bm93O30KfQpmdW5jdGlvbiBhbGVydDIobHZsLG1zZyl7CiAgY29uc3QgbG9nPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdhbG9nJyk7CiAgY29uc3QgZD1kb2N1bWVudC5jcmVhdGVFbGVtZW50KCdkaXYnKTsKICBkLmNsYXNzTmFtZT1gYXIgJHtsdmx9YDsKICBkLmlubmVySFRNTD1gPHNwYW4gY2xhc3M9ImF0Ij4ke3NpbVQudG9GaXhlZCgxKX1zPC9zcGFuPiR7bXNnfWA7CiAgbG9nLmluc2VydEJlZm9yZShkLGxvZy5maXJzdENoaWxkKTsKICB3aGlsZShsb2cuY2hpbGRyZW4ubGVuZ3RoPjYwKSBsb2cucmVtb3ZlQ2hpbGQobG9nLmxhc3RDaGlsZCk7Cn0KZnVuY3Rpb24gZHJpdmVDeWNsZShkdCl7CiAgZGNUKz1kdC8xMDAwOwogIGNvbnN0IHA9KGRjVCU2MCkvNjA7CiAgaWYocDwwLjE1KXtTLmNpPTA7Uy5saT0wO30KICBlbHNlIGlmKHA8MC4zNSl7Uy5saT04MCtNYXRoLnNpbihwKjIwKSoxMDtTLmNpPTA7fQogIGVsc2UgaWYocDwwLjU1KXtTLmxpPTQwK01hdGguc2luKHAqOCkqNTtTLmNpPTA7fQogIGVsc2UgaWYocDwwLjY1KXtTLmNpPTMwO1MubGk9MDt9CiAgZWxzZSBpZihwPDAuNzUpe1MubGk9MTEwO1MuY2k9MDt9CiAgZWxzZSBpZihwPDAuODUpe1MubGk9MjA7Uy5jaT0wO30KICBlbHNle1MuY2k9MDtTLmxpPTA7fQogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzbC1jaScpLnZhbHVlPVMuY2k7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2xibC1jaScpLnRleHRDb250ZW50PU1hdGgucm91bmQoUy5jaSkrJyBBJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc2wtbGknKS52YWx1ZT1TLmxpOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdsYmwtbGknKS50ZXh0Q29udGVudD1NYXRoLnJvdW5kKFMubGkpKycgQSc7Cn0KLy8gPT09PT0gUkVOREVSID09PT09CmZ1bmN0aW9uIHJlbmRlcigpewogIGNvbnN0IG14PU1hdGgubWF4KC4uLlMuY2VsbHMpOwogIGNvbnN0IG1uPU1hdGgubWluKC4uLlMuY2VsbHMuZmlsdGVyKHY9PnY+MTAwKSk7CiAgZm9yKGxldCBpPTA7aTxOO2krKyl7CiAgICBjb25zdCB2PVMuY2VsbHNbaV07CiAgICBjb25zdCBlbD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZChgYyR7aX1gKTsKICAgIGNvbnN0IHZlbD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZChgdiR7aX1gKTsKICAgIGNvbnN0IGJhcj1kb2N1bWVudC5nZXRFbGVtZW50QnlJZChgYiR7aX1gKTsKICAgIGNvbnN0IGZsZz1kb2N1bWVudC5nZXRFbGVtZW50QnlJZChgZiR7aX1gKTsKICAgIHZlbC50ZXh0Q29udGVudD1NYXRoLnJvdW5kKHYpKydtVic7CiAgICBjb25zdCBwY3Q9TWF0aC5tYXgoMCxNYXRoLm1pbigxMDAsKHYtMzAwMCkvMTIwMCoxMDApKTsKICAgIGxldCBiYz0ndmFyKC0tZ3JlZW4pJywgY2xzPSdjbXYnOwogICAgaWYodj49T1Ype2JjPSd2YXIoLS1yZWQpJztjbHM9J2NtdiBkJzt9CiAgICBlbHNlIGlmKHY8PVVWJiZ2PjEwMCl7YmM9J3ZhcigtLXB1cnBsZSknO2Nscz0nY212IGQnO30KICAgIGVsc2UgaWYodj40MTAwKXtiYz0ndmFyKC0tYW1iZXIpJztjbHM9J2NtdiB3Jzt9CiAgICB2ZWwuY2xhc3NOYW1lPWNsczsKICAgIGJhci5zdHlsZS53aWR0aD1wY3QrJyUnOyBiYXIuc3R5bGUuYmFja2dyb3VuZD1iYzsKICAgIGVsLmNsYXNzTmFtZT0nY2MnKyhTLmJhbFtpXT8nIGJhbCc6JycpKyh2Pj1PVj8nIG92JzonJykrKHY8PVVWJiZ2PjEwMD8nIHV2JzonJyk7CiAgICBmbGcudGV4dENvbnRlbnQ9djwxMDA/J+KaoCc6Uy5iYWxbaV0/J+Kalic6dj49T1Y/J+KWsic6djw9VVYmJnY+MTAwPyfilrwnOicnOwogIH0KICAvLyBtZXRyaWNzCiAgY29uc3QgdnA9KFMuY2VsbHMucmVkdWNlKChhLGIpPT5hK2IsMCkvMTAwMCkudG9GaXhlZCgyKTsKICBjb25zdCBkZWx0YT1NYXRoLnJvdW5kKG14LW1uKTsKICBjb25zdCBiYWxDPVMuYmFsLmZpbHRlcihCb29sZWFuKS5sZW5ndGg7CiAgY29uc3QgaUE9KFMuY3VyLzEwMDApLnRvRml4ZWQoMSk7CiAgc20oJ20tdnAnLHZwKydWJywnb2snKTsKICBzbSgnbS1pcCcsaUErJyBBJyxNYXRoLmFicyhTLmN1cik+T0NfTUEqMC44PydkJzpNYXRoLmFicyhTLmN1cik+T0NfTUEqMC41Pyd3Jzonb2snKTsKICBzbSgnbS1kbCcsZGVsdGErJ21WJyxkZWx0YT42MD8nZCc6ZGVsdGE+MjU/J3cnOidvaycpOwogIHNtKCdtLWJsJyxiYWxDLGJhbEM+NT8ndyc6J29rJyk7CiAgLy8gZ2F1Z2VzCiAgY29uc3Qgc29jPU1hdGgucm91bmQoUy5zb2MpOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdnLXNvYycpLnRleHRDb250ZW50PXNvYysnJSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2diLXNvYycpLnN0eWxlLndpZHRoPXNvYysnJSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2diLXNvYycpLnN0eWxlLmJhY2tncm91bmQ9c29jPDIwPyd2YXIoLS1yZWQpJzpzb2M8NDA/J3ZhcigtLWFtYmVyKSc6J3ZhcigtLWdyZWVuKSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2ctc29jLXN1YicpLnRleHRDb250ZW50PWBRID0gJHsoQ0FQX0FIKnNvYy8xMDApLnRvRml4ZWQoMSl9IEFoYDsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZy1zb2gnKS50ZXh0Q29udGVudD1TLnNvaCsnJSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2diLXNvaCcpLnN0eWxlLndpZHRoPVMuc29oKyclJzsKICBjb25zdCBwd3I9TWF0aC5hYnMocGFyc2VGbG9hdCh2cCkqKFMuY3VyLzEwMDApKTsKICBjb25zdCBwd3JLPShwd3IvMTAwMCkudG9GaXhlZCgxKTsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZy1wd3InKS50ZXh0Q29udGVudD1wd3JLKycga1cnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdnYi1wd3InKS5zdHlsZS53aWR0aD1NYXRoLm1pbigxMDAscHdyLzQwMCkrJyUnOwogIC8vIHRlbXBzCiAgUy50ZW1wcy5mb3JFYWNoKCh0LGkpPT57CiAgICBjb25zdCBlbD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZChgdGMke2l9YCk7CiAgICBlbC50ZXh0Q29udGVudD10LnRvRml4ZWQoMSkrJ8KwQyc7CiAgICBlbC5zdHlsZS5jb2xvcj10Pj1PVD8ndmFyKC0tcmVkKSc6dD49NTA/J3ZhcigtLWFtYmVyKSc6J3ZhcigtLXRleHQpJzsKICB9KTsKICAvLyBjb250YWN0b3JzCiAgY29uc3QgcGFja1Y9Uy5jZWxscy5yZWR1Y2UoKGEsYik9PmErYiwwKTsKICBjb25zdCBwcmVQY3Q9TWF0aC5taW4oMTAwLE1hdGgucm91bmQoUy5wcmVWL3BhY2tWKjEwMCkpOwogIGNvbnN0IG9ubGluZT1TLmNvbi5uZWcmJlMuY29uLnBvczsKICBjcygnY3MtbmVnJyxTLmNvbi5uZWc/J0NMT1NFRCc6J09QRU4nKTsKICBjcygnY3MtcHJlJyxTLmNvbi5wcmU/J0FDVElWRSc6J09QRU4nKTsKICBjcygnY3MtcG9zJyxTLmNvbi5wb3M/J0NMT1NFRCc6J09QRU4nKTsKICBjcygnY3Mtb3V0JyxvbmxpbmU/J0NPTk5FQ1RFRCc6J0RJU0NPTk5FQ1RFRCcpOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjcy1wY3QnKS50ZXh0Q29udGVudD1wcmVQY3QrJyUnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjcy1wY3QnKS5zdHlsZS5jb2xvcj1wcmVQY3Q+PTk1Pyd2YXIoLS1ncmVlbiknOid2YXIoLS1jeWFuKSc7CiAgLy8gRlNNIGRpc3BsYXkKICBjb25zdCBzdGF0ZXM9WydJRExFJywnUFJFQ0hBUkdFJywnUkVBRFknLCdDSEFSR0lORycsJ0RJU0NIQVJHSU5HJywnRkFVTFRfT1YnLCdGQVVMVF9VVicsJ0ZBVUxUX09DJywnRkFVTFRfT1QnLCdGQVVMVF9TSE9SVCcsJ0ZBVUxUX09QJ107CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2ZzbScpLmlubmVySFRNTD1zdGF0ZXMubWFwKHM9PnsKICAgIGNvbnN0IGE9Uy5mc209PT1zOwogICAgY29uc3QgYz1hPyhzLnN0YXJ0c1dpdGgoJ0ZBVUxUJyk/J3ZhcigtLXJlZCknOid2YXIoLS1ncmVlbiknKTondmFyKC0tdGV4dDMpJzsKICAgIHJldHVybiBgPHNwYW4gc3R5bGU9ImNvbG9yOiR7Y30iPiR7YT8n4pa2ICc6JyAgJ30ke3N9PC9zcGFuPjxicj5gOwogIH0pLmpvaW4oJycpOwogIC8vIGJtYXAKICBmb3IobGV0IGk9MDtpPE47aSsrKXsKICAgIGNvbnN0IGVsPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKGBibSR7aX1gKTsKICAgIGVsLnN0eWxlLmJhY2tncm91bmQ9Uy5iYWxbaV0/J3ZhcigtLWFtYmVyKSc6J3ZhcigtLWJnNCknOwogICAgZWwuc3R5bGUuY29sb3I9Uy5iYWxbaV0/JyMwZDExMTcnOid2YXIoLS10ZXh0MyknOwogIH0KICAvLyB0b3BiYXIKICBjb25zdCB0Yj1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgndG9wLWJhZGdlJyk7CiAgY29uc3QgdGw9ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3RvcC1sYmwnKTsKICBpZihTLmZzbS5zdGFydHNXaXRoKCdGQVVMVCcpKXt0Yi5jbGFzc05hbWU9J2JhZGdlIGZhdWx0Jzt0Yi50ZXh0Q29udGVudD1TLmZzbTt0bC5zdHlsZS5jb2xvcj0ndmFyKC0tcmVkKSc7dGwudGV4dENvbnRlbnQ9J0ZhdWx0IGFjdGl2ZSc7fQogIGVsc2UgaWYoWydDSEFSR0lORycsJ0RJU0NIQVJHSU5HJywnUFJFQ0hBUkdFJ10uaW5jbHVkZXMoUy5mc20pKXt0Yi5jbGFzc05hbWU9J2JhZGdlIHdhcm4nO3RiLnRleHRDb250ZW50PVMuZnNtO3RsLnN0eWxlLmNvbG9yPSd2YXIoLS1hbWJlciknO3RsLnRleHRDb250ZW50PSdQYWNrIGFjdGl2ZSc7fQogIGVsc2V7dGIuY2xhc3NOYW1lPSdiYWRnZSBvayc7dGIudGV4dENvbnRlbnQ9Uy5mc207dGwuc3R5bGUuY29sb3I9J3ZhcigtLWdyZWVuKSc7dGwudGV4dENvbnRlbnQ9J1BhY2sgbm9taW5hbCc7fQogIC8vIGJvdHRvbQogIGNvbnN0IGRvdD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYm1zLWRvdCcpOwogIGRvdC5jbGFzc05hbWU9J3Nkb3QgJysoUy5mc20uc3RhcnRzV2l0aCgnRkFVTFQnKT8nZic6WydDSEFSR0lORycsJ0RJU0NIQVJHSU5HJ10uaW5jbHVkZXMoUy5mc20pPyd3Jzonb2snKTsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYm1zLWZzbScpLnRleHRDb250ZW50PSdGU006ICcrUy5mc207CiAgY29uc3QgZmw9QXJyYXkuZnJvbShTLmZhdWx0cyk7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2JvdC1mYXVsdHMnKS50ZXh0Q29udGVudD1mbC5sZW5ndGg/J0ZhdWx0czogJytmbC5qb2luKCcsICcpOidObyBhY3RpdmUgZmF1bHRzJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYm90LXRpY2snKS50ZXh0Q29udGVudD0ndGljayAjJyt0aWNrOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzaW0tdCcpLnRleHRDb250ZW50PXNpbVQudG9GaXhlZCgxKTsKICAvLyB3YXZlZm9ybQogIGNvbnN0IHZhPVMuY2VsbHMucmVkdWNlKChhLGIpPT5hK2IsMCkvTi8xMDAwOwogIFdILnZhLnB1c2godmEpOyBXSC5zYy5wdXNoKDMrKFMuc29jLzEwMCkqMS4yKTsKICBXSC5pcC5wdXNoKDMuNSsoUy5jdXIvT0NfTUEpKjAuOCk7CiAgV0gudm0ucHVzaChteC8xMDAwKTsKICBpZihXSC52YS5sZW5ndGg+V0wpIE9iamVjdC5rZXlzKFdIKS5mb3JFYWNoKGs9PldIW2tdLnNoaWZ0KCkpOwogIGRyYXdXYXZlKCk7Cn0KZnVuY3Rpb24gZHJhd1dhdmUoKXsKICBjb25zdCBjPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCd3YycpOwogIGNvbnN0IFc9Yy53aWR0aD1jLm9mZnNldFdpZHRofHw2MDAsIEg9Yy5oZWlnaHQ9OTA7CiAgY29uc3QgY3R4PWMuZ2V0Q29udGV4dCgnMmQnKTsKICBjdHguZmlsbFN0eWxlPScjMGQxMTE3JzsgY3R4LmZpbGxSZWN0KDAsMCxXLEgpOwogIGN0eC5zdHJva2VTdHlsZT0nIzFmMjkzNyc7IGN0eC5saW5lV2lkdGg9MTsKICBmb3IobGV0IHk9MDt5PEg7eSs9SC80KXtjdHguYmVnaW5QYXRoKCk7Y3R4Lm1vdmVUbygwLHkpO2N0eC5saW5lVG8oVyx5KTtjdHguc3Ryb2tlKCk7fQogIFt7ZDpXSC52YSxtbjozLG14OjQuNCxjOicjNzljMGZmJ30se2Q6V0guc2MsbW46MyxteDo0LjIsYzonIzNmYjk1MCd9LAogICB7ZDpXSC5pcCxtbjoyLjUsbXg6NC41LGM6JyNkMjk5MjInfSx7ZDpXSC52bSxtbjozLG14OjQuNCxjOicjZjg1MTQ5J31dLmZvckVhY2goKHtkLG1uLG14LGN9KT0+ewogICAgaWYoZC5sZW5ndGg8MikgcmV0dXJuOwogICAgY3R4LnN0cm9rZVN0eWxlPWM7IGN0eC5saW5lV2lkdGg9MS41OyBjdHguYmVnaW5QYXRoKCk7CiAgICBkLmZvckVhY2goKHYsaSk9PnsKICAgICAgY29uc3QgeD1pLyhXTC0xKSpXLCB5PUgtKHYtbW4pLyhteC1tbikqSCowLjg1LUgqMC4wNzsKICAgICAgaT09PTA/Y3R4Lm1vdmVUbyh4LHkpOmN0eC5saW5lVG8oeCx5KTsKICAgIH0pOyBjdHguc3Ryb2tlKCk7CiAgfSk7Cn0KZnVuY3Rpb24gc20oaWQsdmFsLGNscyl7Y29uc3QgZT1kb2N1bWVudC5nZXRFbGVtZW50QnlJZChpZCk7ZS50ZXh0Q29udGVudD12YWw7ZS5jbGFzc05hbWU9J212ICcrKGNsc3x8J29rJyk7fQpmdW5jdGlvbiBjcyhpZCx0eHQpewogIGNvbnN0IGU9ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoaWQpOyBlLnRleHRDb250ZW50PXR4dDsKICBlLmNsYXNzTmFtZT0nY3N0ICcrKHR4dD09PSdDTE9TRUQnfHx0eHQ9PT0nQ09OTkVDVEVEJz8nY2xvc2VkJzp0eHQ9PT0nQUNUSVZFJz8nYWN0aXZlJzonb3BlbicpOwp9Ci8vID09PT09IENPTlRST0xTID09PT09CmZ1bmN0aW9uIHRvZ2dsZVJ1bigpewogIHJ1bm5pbmc9IXJ1bm5pbmc7CiAgY29uc3QgYj1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYnRuLXJ1bicpOwogIGIudGV4dENvbnRlbnQ9cnVubmluZz8n4o+4IFBhdXNlJzon4pa2IFJ1bic7CiAgYi5zdHlsZS5iYWNrZ3JvdW5kPXJ1bm5pbmc/JyMxYTJlNGEnOicjMmExYTAwJzsKfQpmdW5jdGlvbiBzZXRNb2RlKG0pewogIG1vZGU9bTsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbWItbWFudWFsJykuY2xhc3NOYW1lPSdtYicrKG09PT0nbWFudWFsJz8nIGFjdGl2ZSc6JycpOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdtYi1kcml2ZScpLmNsYXNzTmFtZT0nbWInKyhtPT09J2RyaXZlJz8nIGFjdGl2ZSc6JycpOwogIGlmKG09PT0nZHJpdmUnKXtkY1Q9MDsgYWxlcnQyKCdpbmZvJywnRHJpdmUgY3ljbGUgc3RhcnRlZCDigJQgV0xUUC1saWtlIHByb2ZpbGUnKTt9Cn0KZnVuY3Rpb24gdXBkKGssdil7CiAgaWYoaz09PSdjaScpe1MuY2k9K3Y7IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdsYmwtY2knKS50ZXh0Q29udGVudD12KycgQSc7fQogIGlmKGs9PT0nbGknKXtTLmxpPSt2OyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbGJsLWxpJykudGV4dENvbnRlbnQ9disnIEEnO30KICBpZihrPT09J2F0Jyl7Uy5hdD0rdjsgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2xibC1hdCcpLnRleHRDb250ZW50PXYrJ8KwQyc7fQogIGlmKGs9PT0nY2QnKXtTLmNkPSt2OyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbGJsLWNkJykudGV4dENvbnRlbnQ9disnbVYnO30KfQpmdW5jdGlvbiBpbmooZil7CiAgY29uc3QgYj1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZmktJytmKTsKICBpZihTLmZhdWx0cy5oYXMoZikpe1MuZmF1bHRzLmRlbGV0ZShmKTtiLmNsYXNzTmFtZT0nZmInO2FsZXJ0MignaW5mbycsJ0ZhdWx0IGNsZWFyZWQ6ICcrZik7fQogIGVsc2V7Uy5mYXVsdHMuYWRkKGYpO2IuY2xhc3NOYW1lPSdmYiBvbic7YWxlcnQyKCdmYXVsdCcsJ0ZhdWx0IGluamVjdGVkOiAnK2YpO30KfQpmdW5jdGlvbiBjbGVhckYoKXsKICBTLmZhdWx0cy5jbGVhcigpOwogIFsnb3YnLCd1dicsJ29jJywnc2MnLCdvdCcsJ29wJ10uZm9yRWFjaChmPT5kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZmktJytmKS5jbGFzc05hbWU9J2ZiJyk7CiAgYWxlcnQyKCdpbmZvJywnQWxsIGZhdWx0cyBjbGVhcmVkJyk7Cn0KZnVuY3Rpb24gdG9nQyhjKXsKICBTLmNvbltjXT0hUy5jb25bY107CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2J0bi0nK2MpLmNsYXNzTmFtZT0nYnRuJysoUy5jb25bY10/JyBhY3RpdmUnOicnKTsKICBhbGVydDIoJ2luZm8nLGMudG9VcHBlckNhc2UoKSsnIGNvbnRhY3RvciAnKyhTLmNvbltjXT8nQ0xPU0VEJzonT1BFTicpKTsKfQphc3luYyBmdW5jdGlvbiBhdXRvUHJlKCl7CiAgYWxlcnQyKCdpbmZvJywnQXV0byBwcmVjaGFyZ2Ugc2VxdWVuY2Ugc3RhcnRpbmcuLi4nKTsKICBTLmNvbj17bmVnOmZhbHNlLHByZTpmYWxzZSxwb3M6ZmFsc2V9OwogIFsnbmVnJywncHJlJywncG9zJ10uZm9yRWFjaChrPT5kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYnRuLScraykuY2xhc3NOYW1lPSdidG4nKTsKICBhd2FpdCB3YWl0KDMwMCk7CiAgUy5jb24ubmVnPXRydWU7IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdidG4tbmVnJykuY2xhc3NOYW1lPSdidG4gYWN0aXZlJzsKICBhbGVydDIoJ2luZm8nLCdTdGVwIDEg4oCUIE5FRyBjb250YWN0b3IgQ0xPU0VEJyk7CiAgYXdhaXQgd2FpdCg0MDApOwogIFMuY29uLnByZT10cnVlOyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYnRuLXByZScpLmNsYXNzTmFtZT0nYnRuIGFjdGl2ZSc7CiAgYWxlcnQyKCdpbmZvJywnU3RlcCAyIOKAlCBQcmVjaGFyZ2UgcmVsYXkgQ0xPU0VEJyk7CiAgY29uc3QgdDA9RGF0ZS5ub3coKTsKICB3aGlsZShTLnByZVYvUy5jZWxscy5yZWR1Y2UoKGEsYik9PmErYiwwKTwwLjk1JiZEYXRlLm5vdygpLXQwPDYwMDApIGF3YWl0IHdhaXQoNTApOwogIGFsZXJ0MignaW5mbycsJ1N0ZXAgMyDigJQgUHJlY2hhcmdlIGNvbXBsZXRlICjiiaU5NSUpIOKAlCBjbG9zaW5nIFBPUycpOwogIFMuY29uLnBvcz10cnVlOyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYnRuLXBvcycpLmNsYXNzTmFtZT0nYnRuIGFjdGl2ZSc7CiAgYXdhaXQgd2FpdCgxNTApOwogIFMuY29uLnByZT1mYWxzZTsgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2J0bi1wcmUnKS5jbGFzc05hbWU9J2J0bic7CiAgYWxlcnQyKCdpbmZvJywnU3RlcCA0IOKAlCBQcmVjaGFyZ2UgcmVsYXkgT1BFTiDigJQgcGFjayBPTkxJTkUg4pyTJyk7Cn0KZnVuY3Rpb24gd2FpdChtcyl7cmV0dXJuIG5ldyBQcm9taXNlKHI9PnNldFRpbWVvdXQocixtcykpO30KZnVuY3Rpb24gcmVzZXRTaW0oKXsKICBTLmNlbGxzPUFycmF5LmZyb20oe2xlbmd0aDpOfSwoXyxpKT0+MzcwMCtpKjE1KTsKICBTLnNvYz03NTsgUy5jdXI9MDsgUy5jaT0wOyBTLmxpPTA7CiAgUy5jb249e25lZzpmYWxzZSxwcmU6ZmFsc2UscG9zOmZhbHNlfTsKICBTLmZhdWx0cy5jbGVhcigpOyBTLmZzbT0nSURMRSc7IFMuYmFsLmZpbGwoZmFsc2UpOyBTLnByZVY9MDsKICBjbGVhckYoKTsgc2ltVD0wOyB0aWNrPTA7IFdIPXt2YTpbXSxzYzpbXSxpcDpbXSx2bTpbXX07CiAgWyduZWcnLCdwcmUnLCdwb3MnXS5mb3JFYWNoKGs9PmRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdidG4tJytrKS5jbGFzc05hbWU9J2J0bicpOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzbC1jaScpLnZhbHVlPTA7IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdsYmwtY2knKS50ZXh0Q29udGVudD0nMCBBJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc2wtbGknKS52YWx1ZT0wOyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbGJsLWxpJykudGV4dENvbnRlbnQ9JzAgQSc7CiAgYWxlcnQyKCdpbmZvJywnU2ltdWxhdGlvbiByZXNldCDigJQgMTRTMlAgwrcgU09DIDc1JScpOwp9Ci8vID09PT09IE1BSU4gTE9PUCA9PT09PQpsZXQgbGFzdFQ9cGVyZm9ybWFuY2Uubm93KCk7CmZ1bmN0aW9uIGxvb3Aobm93KXsKICBpZihydW5uaW5nKXsKICAgIGNvbnN0IGR0PU1hdGgubWluKG5vdy1sYXN0VCwxMDApOwogICAgc2ltVCs9ZHQvMTAwMDsgdGljaysrOwogICAgdGlja19zaW0oZHQpOwogICAgcmVuZGVyKCk7CiAgfQogIGxhc3RUPW5vdzsKICByZXF1ZXN0QW5pbWF0aW9uRnJhbWUobG9vcCk7Cn0KYWxlcnQyKCdpbmZvJywnUmVhZHkg4oCUIHVzZSBzbGlkZXJzLCBmYXVsdCBpbmplY3Rpb24sIG9yIGRyaXZlIGN5Y2xlIG1vZGUnKTsKcmVuZGVyKCk7CnJlcXVlc3RBbmltYXRpb25GcmFtZShsb29wKTsKPC9zY3JpcHQ+CjwvYm9keT4KPC9odG1sPgo=";
+function decodeSimulatorHTML(){
+  const bin = atob(SIMULATOR_B64);
+  const bytes = Uint8Array.from(bin, c=>c.charCodeAt(0));
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+/* =========================================================
+   TINY DOM HELPERS
+   ========================================================= */
+function el(tag, attrs={}, ...kids){
+  const n = document.createElement(tag);
+  for(const k in attrs){
+    if(k==='html'){ n.innerHTML = attrs[k]; }
+    else if(k.startsWith('on') && typeof attrs[k]==='function'){ n.addEventListener(k.slice(2), attrs[k]); }
+    else if(k==='style'){ n.style.cssText = attrs[k]; }
+    else { n.setAttribute(k, attrs[k]); }
+  }
+  kids.flat().forEach(kid=>{
+    if(kid==null) return;
+    n.appendChild((typeof kid==='string' || typeof kid==='number') ? document.createTextNode(String(kid)) : kid);
+  });
+  return n;
+}
+function svgEl(tag, attrs={}){
+  const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for(const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+
+/* =========================================================
+   NAV + LANDING GRID
+   ========================================================= */
+function buildNav(){
+  const nav = document.getElementById('navInner');
+  TOPICS.forEach(t=>{
+    const b = el('button',{class:'nav-btn', 'data-target':t.id, onclick:()=>showSection(t.id)},
+      el('span',{class:'swatch', style:`background:${t.color}`}), `${t.icon} ${t.title}`);
+    nav.appendChild(b);
+  });
+  nav.appendChild(el('button',{class:'nav-btn quiz-btn', 'data-target':'quiz', onclick:()=>showSection('quiz')}, '🎯 Quiz Mode'));
+}
+
+function buildLanding(){
+  const grid = document.getElementById('topicGrid');
+  TOPICS.forEach(t=>{
+    grid.appendChild(el('button',{class:'topic-card', onclick:()=>showSection(t.id)},
+      el('span',{class:'ic'}, t.icon),
+      el('span',{class:'badge', style:`background:${t.color}`}, t.badge),
+      el('h3',{}, t.title),
+      el('p',{}, t.tagline)
+    ));
+  });
+  grid.appendChild(el('button',{class:'topic-card', style:'border-color:rgba(217,89,38,0.4)', onclick:()=>showSection('quiz')},
+    el('span',{class:'ic'}, '🎯'),
+    el('span',{class:'badge', style:'background:#d95926'}, 'Test yourself'),
+    el('h3',{}, 'Quiz Mode'),
+    el('p',{}, `${QUIZ.length} questions across all topics — see how much BMS knowledge stuck.`)
+  ));
+}
+
+function showSection(id){
+  document.querySelectorAll('section.topic').forEach(s=> s.classList.toggle('active', s.id===`sec-${id}`));
+  document.querySelectorAll('.nav-btn').forEach(b=> b.classList.toggle('active', b.dataset.target===id));
+  const target = document.getElementById(`sec-${id}`);
+  if(target) window.scrollTo({top: target.offsetTop - 70, behavior:'smooth'});
+}
+
+/* =========================================================
+   REUSABLE MINI-CHARTS
+   ========================================================= */
+function barChart(container, rows, {max, unit=''}={}){
+  const wrap = el('div',{});
+  const m = max || Math.max(...rows.map(r=>r.value));
+  rows.forEach(r=>{
+    wrap.appendChild(el('div',{class:'barrow'},
+      el('div',{class:'lbl'}, r.label),
+      el('div',{class:'bartrack'}, el('div',{class:'barfill', style:`width:0%; background:${r.color}`, 'data-w':`${(r.value/m*100).toFixed(1)}`})),
+      el('div',{class:'barval'}, r.display || `${r.value}${unit}`)
+    ));
+  });
+  container.appendChild(wrap);
+  requestAnimationFrame(()=> wrap.querySelectorAll('.barfill').forEach(f=> f.style.width = f.dataset.w+'%'));
+}
+
+function specBars(container, rows){
+  // rows: {label, a:{val 1-5, color}, b:{val 1-5, color}}
+  rows.forEach(r=>{
+    const line = el('div',{style:'margin-bottom:14px;'},
+      el('div',{style:'font-size:12px;color:var(--text-muted);margin-bottom:5px;'}, r.label),
+      el('div',{style:'display:flex;align-items:center;gap:8px;'},
+        el('div',{style:'width:56px;font-size:11px;color:'+SWITCHES.igbt.color+';font-weight:700;'}, 'IGBT'),
+        el('div',{class:'bartrack', style:'flex:1;'}, el('div',{class:'barfill', style:`width:${r.a*20}%;background:${SWITCHES.igbt.color}`})),
+      ),
+      el('div',{style:'display:flex;align-items:center;gap:8px;margin-top:4px;'},
+        el('div',{style:'width:56px;font-size:11px;color:'+SWITCHES.mosfet.color+';font-weight:700;'}, 'MOSFET'),
+        el('div',{class:'bartrack', style:'flex:1;'}, el('div',{class:'barfill', style:`width:${r.b*20}%;background:${SWITCHES.mosfet.color}`})),
+      )
+    );
+    container.appendChild(line);
+  });
+}
+
+function rcCurveSVG(R, C_uF){
+  const tau = R * C_uF * 1e-6; // seconds
+  const W=560, H=200, pad={l:40,r:16,t:16,b:30};
+  const plotW = W-pad.l-pad.r, plotH = H-pad.t-pad.b;
+  const tMax = tau*5;
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', style:'max-width:100%; height:auto; display:block;'});
+  // gridlines
+  [0,25,50,75,100].forEach(pct=>{
+    const y = pad.t + plotH - (pct/100*plotH);
+    svg.appendChild(svgEl('line',{x1:pad.l,x2:W-pad.r,y1:y,y2:y,stroke:'#2c2c2a','stroke-width':1}));
+    const t = svgEl('text',{x:6,y:y+4,'font-size':10,fill:'#7c8aa0'}); t.textContent=pct+'%'; svg.appendChild(t);
+  });
+  // curve
+  let d = '';
+  for(let i=0;i<=100;i++){
+    const t = (i/100)*tMax;
+    const v = 100*(1-Math.exp(-t/tau));
+    const x = pad.l + (t/tMax)*plotW;
+    const y = pad.t + plotH - (v/100*plotH);
+    d += (i===0?'M':'L') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+  }
+  svg.appendChild(svgEl('path',{d, fill:'none', stroke:'#3987e5','stroke-width':2.5}));
+  // tau marker
+  const xTau = pad.l + (tau/tMax)*plotW;
+  const yTau = pad.t + plotH - (63/100*plotH);
+  svg.appendChild(svgEl('line',{x1:xTau,x2:xTau,y1:pad.t,y2:pad.t+plotH, stroke:'#d95926','stroke-width':1.3,'stroke-dasharray':'4,4'}));
+  svg.appendChild(svgEl('circle',{cx:xTau, cy:yTau, r:4.5, fill:'#d95926'}));
+  const lbl = svgEl('text',{x:xTau+8, y:yTau-8, 'font-size':11, fill:'#f3c3a8', 'font-weight':700}); lbl.textContent = `τ = ${(tau*1000).toFixed(1)} ms → 63%`;
+  svg.appendChild(lbl);
+  const xlbl = svgEl('text',{x:W-pad.r, y:H-8, 'font-size':10, fill:'#7c8aa0', 'text-anchor':'end'}); xlbl.textContent='time →';
+  svg.appendChild(xlbl);
+  return {svg, tau};
+}
+
+function clampingSVG(){
+  const W=560,H=190, pad={l:16,r:16,t:16,b:16};
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', style:'height:auto; display:block;'});
+  const base = H-pad.b, top = pad.t;
+  // spike (unprotected)
+  const spike = `M${pad.l} ${base} L ${pad.l+90} ${base} L ${pad.l+130} ${top+6} L ${pad.l+170} ${base-20} L ${pad.l+260} ${base-10} L ${W-pad.r} ${base-10}`;
+  svg.appendChild(svgEl('path',{d:spike, fill:'none', stroke:'#7c8aa0','stroke-width':1.6,'stroke-dasharray':'5,4'}));
+  // TVS clamp: fast, tight clamp near top-third
+  const tvsY = top+55;
+  const tvs = `M${pad.l} ${base} L ${pad.l+90} ${base} L ${pad.l+104} ${tvsY} L ${pad.l+150} ${tvsY} L ${pad.l+165} ${base-6} L ${W-pad.r} ${base-6}`;
+  svg.appendChild(svgEl('path',{d:tvs, fill:'none', stroke:'#3987e5','stroke-width':2.6}));
+  // MOV clamp: slightly higher/slower, longer duration
+  const movY = top+80;
+  const mov = `M${pad.l} ${base} L ${pad.l+95} ${base} L ${pad.l+112} ${movY} L ${pad.l+230} ${movY} L ${pad.l+255} ${base-4} L ${W-pad.r} ${base-4}`;
+  svg.appendChild(svgEl('path',{d:mov, fill:'none', stroke:'#d95926','stroke-width':2.6}));
+  svg.appendChild(svgEl('line',{x1:pad.l,x2:W-pad.r,y1:base,y2:base, stroke:'#383835','stroke-width':1}));
+  return svg;
+}
+
+/* =========================================================
+   SECTION: SOC
+   ========================================================= */
+function renderSOC(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.aqua}`}, 'Day 2 · #EVBatterySystemsSeries'),
+    el('h2',{}, '🔋 SOC, SOH &amp; SOP — Estimation Theory'.replace('&amp;','&')),
+    el('p',{}, 'The three numbers a BMS lives and dies by: SOC (how much charge is left right now), SOH (how much of the battery\'s original capability remains), and SOP (how much power it can safely deliver this instant). All three are estimated, never measured directly.')
+  ));
+
+  // Calculator block
+  const calcBlock = el('div',{class:'block'},
+    el('h4',{}, '🧮 Try it — SOC calculator'),
+    el('div',{class:'grid-2'},
+      el('div',{},
+        el('label',{class:'field'}, 'Rated Capacity (Ah)'),
+        el('input',{type:'number', id:'ratedAh', value:'50', min:'1'}),
+        el('div',{style:'height:10px;'}),
+        el('label',{class:'field'}, 'Remaining Capacity (Ah)'),
+        el('input',{type:'number', id:'remAh', value:'35', min:'0'}),
+        el('div',{style:'height:14px;'}),
+        el('div',{style:'font-size:12px;color:var(--text-muted);'}, 'SOC(%) = (Remaining Capacity / Rated Capacity) × 100')
+      ),
+      el('div',{style:'display:flex; flex-direction:column; align-items:center; justify-content:center;'},
+        el('div',{id:'socMeter', style:'width:70px; height:130px; border:3px solid var(--card-border); border-radius:10px; position:relative; overflow:hidden; background:var(--bg);'},
+          el('div',{id:'socFill', style:'position:absolute; bottom:0; left:0; right:0; height:70%; background:linear-gradient(180deg,#1fae4a,#0ca30c); transition:all .4s;'})
+        ),
+        el('div',{id:'socLabel', style:'margin-top:10px; font-size:26px; font-weight:800;'}, '70%'),
+        el('div',{id:'socStatus', style:'font-size:12.5px; color:var(--good); font-weight:700;'}, 'High')
+      )
+    )
+  );
+  sec.appendChild(calcBlock);
+
+  function updateSOC(){
+    const rated = parseFloat(document.getElementById('ratedAh').value)||0;
+    const rem = parseFloat(document.getElementById('remAh').value)||0;
+    let soc = rated>0 ? Math.max(0, Math.min(100, (rem/rated)*100)) : 0;
+    document.getElementById('socFill').style.height = soc+'%';
+    document.getElementById('socLabel').textContent = soc.toFixed(0)+'%';
+    let status='Empty', color='var(--critical)', grad='#e66767,#d03b3b';
+    if(soc>=90){status='Full'; color='var(--good)'; grad='#1fae4a,#0ca30c';}
+    else if(soc>=60){status='High'; color='var(--good)'; grad='#1fae4a,#0ca30c';}
+    else if(soc>=35){status='Medium'; color='var(--warning)'; grad='#fab219,#c98500';}
+    else if(soc>=12){status='Low'; color='var(--serious)'; grad='#ec835a,#d95926';}
+    document.getElementById('socStatus').textContent = status;
+    document.getElementById('socStatus').style.color = color;
+    document.getElementById('socFill').style.background = `linear-gradient(180deg,${grad})`;
+  }
+  setTimeout(()=>{
+    document.getElementById('ratedAh').addEventListener('input', updateSOC);
+    document.getElementById('remAh').addEventListener('input', updateSOC);
+    updateSOC();
+  },0);
+
+  // Safe window
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '📏 Typical Safe Operating Window (Li-ion)'),
+    el('div',{style:'display:flex; height:26px; border-radius:8px; overflow:hidden; font-size:11px; font-weight:700; color:#0b0b0b;'},
+      el('div',{style:'width:10%; background:#e66767; display:flex; align-items:center; justify-content:center;'}, '0'),
+      el('div',{style:'width:80%; background:#1fae4a; display:flex; align-items:center; justify-content:center;'}, 'Safe Operating Region (10%–90%)'),
+      el('div',{style:'width:10%; background:#e66767; display:flex; align-items:center; justify-content:center;'}, '100'),
+    ),
+    el('p',{style:'margin-top:10px; font-size:12.5px;'}, 'Avoid deep discharge below ~10% and overcharge above ~90% to protect long-term battery health.')
+  ));
+
+  // Methods
+  const methodsBlock = el('div',{class:'block'}, el('h4',{}, '⚙️ SOC Estimation Methods — click a card to flip'));
+  const methodGrid = el('div',{class:'grid-2'});
+  SOC_METHODS.forEach(m=>{
+    const card = el('div',{class:'flip-card'},
+      el('span',{class:'flip-hint'}, '↻ flip'),
+      el('div',{class:'front show'},
+        el('h3',{style:'font-size:15px;'}, m.name),
+        el('p',{style:'font-size:13px;'}, m.principle),
+        el('div',{style:'font-size:11.5px; color:var(--text-muted); margin-top:8px; font-family:monospace;'}, m.eq)
+      ),
+      el('div',{class:'back'},
+        el('div',{style:'font-size:12px; font-weight:700; color:var(--good); margin-bottom:6px;'}, '✓ Pros'),
+        el('ul',{style:'margin:0 0 10px 18px; padding:0; font-size:12.5px; color:var(--text-secondary);'}, m.pros.map(p=>el('li',{}, p))),
+        el('div',{style:'font-size:12px; font-weight:700; color:var(--critical); margin-bottom:6px;'}, '✗ Cons'),
+        el('ul',{style:'margin:0 0 0 18px; padding:0; font-size:12.5px; color:var(--text-secondary);'}, m.cons.map(p=>el('li',{}, p)))
+      )
+    );
+    card.addEventListener('click', ()=>{
+      card.querySelector('.front').classList.toggle('show');
+      card.querySelector('.back').classList.toggle('show');
+    });
+    methodGrid.appendChild(card);
+  });
+  methodsBlock.appendChild(methodGrid);
+  sec.appendChild(methodsBlock);
+
+  // Accuracy comparison table
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '📊 Accuracy Comparison (Typical)'),
+    el('table',{class:'spec'},
+      el('tr',{}, el('th',{},'Method'), el('th',{},'Accuracy'), el('th',{},'Response Time'), el('th',{},'Best Use Case')),
+      ...SOC_METHODS.map(m=> el('tr',{}, el('td',{},m.name), el('td',{},m.accuracy), el('td',{},m.response), el('td',{},m.use)))
+    )
+  ));
+
+  // Factors + params grid
+  const twoCol = el('div',{class:'grid-2'});
+  const factorsBlock = el('div',{class:'block'}, el('h4',{}, '🎛️ Factors Affecting SOC Accuracy'));
+  SOC_FACTORS.forEach(([ic,name,desc])=> factorsBlock.appendChild(el('div',{style:'display:flex; gap:10px; margin-bottom:10px;'},
+    el('span',{}, ic), el('div',{}, el('div',{style:'font-size:13px;font-weight:700;'}, name), el('div',{style:'font-size:12px;color:var(--text-secondary);'}, desc))
+  )));
+  const paramsBlock = el('div',{class:'block'}, el('h4',{}, '🔤 SOC vs Other Battery Parameters'),
+    el('table',{class:'spec'}, ...SOC_PARAMS.map(([k,v])=> el('tr',{}, el('td',{class:'win'},k), el('td',{},v))))
+  );
+  twoCol.appendChild(factorsBlock); twoCol.appendChild(paramsBlock);
+  sec.appendChild(twoCol);
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🚗 Applications'),
+    el('div',{}, ['Electric Vehicles','Hybrid Electric Vehicles (HEVs)','Energy Storage Systems (ESS)','Solar Battery Systems','UPS Systems','Consumer Electronics'].map(a=> el('span',{class:'chip'}, a)))
+  ));
+
+  // ---- SOH ----
+  sec.appendChild(el('div',{class:'topic-head', style:'margin-top:8px;'},
+    el('span',{class:'tag', style:`color:${COLORS.blue}`}, 'State of Health'),
+    el('h2',{style:'font-size:22px;'}, '🩺 SOH — How Much Battery Is Left'),
+    el('p',{}, 'SOH tracks long-term degradation — usually expressed as a percentage of beginning-of-life capacity or resistance. Unlike SOC, it changes slowly (over weeks/months), but it\'s what determines range fade and remaining useful life.')
+  ));
+  const sohGrid = el('div',{class:'grid-2'});
+  SOH_METHODS.forEach(m=>{
+    const card = el('div',{class:'flip-card'},
+      el('span',{class:'flip-hint'}, '↻ flip'),
+      el('div',{class:'front show'},
+        el('h3',{style:'font-size:14.5px;'}, m.name),
+        el('p',{style:'font-size:12.5px;'}, m.principle),
+        el('div',{style:'font-size:11px; color:var(--text-muted); margin-top:8px; font-family:monospace;'}, m.eq)
+      ),
+      el('div',{class:'back'},
+        el('div',{style:'font-size:12px; font-weight:700; color:var(--good); margin-bottom:6px;'}, '✓ Pros'),
+        el('ul',{style:'margin:0 0 10px 18px; padding:0; font-size:12.5px; color:var(--text-secondary);'}, m.pros.map(p=>el('li',{}, p))),
+        el('div',{style:'font-size:12px; font-weight:700; color:var(--critical); margin-bottom:6px;'}, '✗ Cons'),
+        el('ul',{style:'margin:0 0 0 18px; padding:0; font-size:12.5px; color:var(--text-secondary);'}, m.cons.map(p=>el('li',{}, p)))
+      )
+    );
+    card.addEventListener('click', ()=>{
+      card.querySelector('.front').classList.toggle('show');
+      card.querySelector('.back').classList.toggle('show');
+    });
+    sohGrid.appendChild(card);
+  });
+  sec.appendChild(sohGrid);
+
+  // ---- SOP ----
+  sec.appendChild(el('div',{class:'topic-head', style:'margin-top:8px;'},
+    el('span',{class:'tag', style:`color:${COLORS.violet}`}, 'State of Power'),
+    el('h2',{style:'font-size:22px;'}, '⚡ SOP — How Much Power, Right Now'),
+    el('p',{}, 'SOP is the maximum continuous or pulse (e.g. 2s / 10s) charge/discharge power the pack can deliver without breaching voltage, current or thermal limits — computed from the equivalent-circuit model plus the present SOC, temperature, and Vmin/Vmax limits.')
+  ));
+  sec.appendChild(el('div',{class:'block'},
+    el('table',{class:'spec'},
+      el('tr',{}, el('td',{class:'win'},'Depends on'), el('td',{},'Present SOC, cell temperature, internal resistance, and the pack\'s voltage/current safety limits')),
+      el('tr',{}, el('td',{class:'win'},'Two flavors'), el('td',{},'Continuous power capability, and short-pulse power capability (typically rated over 2s or 10s windows)')),
+      el('tr',{}, el('td',{class:'win'},'Why it matters'), el('td',{},'It\'s what actually limits acceleration and regen braking availability — not SOC directly')),
+    )
+  ));
+
+  // ---- AI ----
+  sec.appendChild(el('div',{class:'topic-head', style:'margin-top:8px;'},
+    el('span',{class:'tag', style:`color:${COLORS.magenta}`}, 'AI Amelioration'),
+    el('h2',{style:'font-size:22px;'}, '🤖 Where AI/ML Improves Estimation'),
+    el('p',{}, 'Classic filters (Kalman, RLS) rely on an explicit battery model. Data-driven methods learn the relationship directly from data instead — trading interpretability for the ability to capture behavior that\'s hard to model by hand.')
+  ));
+  const aiGrid = el('div',{class:'grid-2'});
+  AI_METHODS.forEach(m=>{
+    aiGrid.appendChild(el('div',{class:'block'},
+      el('h4',{style:'text-transform:none; font-size:14px;'}, m.name),
+      el('div',{style:'font-size:11.5px; color:var(--text-muted); margin-bottom:6px;'}, '📥 Input: ' + m.input),
+      el('div',{style:'font-size:12.5px; font-weight:700; color:var(--aqua); margin-bottom:4px;'}, '🎯 Best for: ' + m.best),
+      el('p',{style:'font-size:12px;'}, m.note),
+    ));
+  });
+  sec.appendChild(aiGrid);
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '⚖️ Classic Model-Based vs AI/ML — Trade-offs'),
+    el('table',{class:'spec'},
+      el('tr',{}, el('th',{},'Dimension'), el('th',{style:`color:${COLORS.blue}`},'Model-based (EKF/RLS)'), el('th',{style:`color:${COLORS.magenta}`},'AI / ML')),
+      ...AI_TRADE.map(([d,a,b])=> el('tr',{}, el('td',{},d), el('td',{},a), el('td',{},b)))
+    )
+  ));
+  sec.appendChild(el('div',{class:'disclaimer-box'}, '💡 In practice, most production BMS today run model-based estimation onboard (proven, certifiable, cheap to run) and use AI/ML more for offline SOH/RUL analytics or as a correction layer fused with the physical model — full end-to-end neural SOC estimation on an automotive MCU is still mostly research/early production.'));
+}
+
+/* =========================================================
+   SECTION: BATTERY CHEMISTRY
+   ========================================================= */
+function renderChem(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.blue}`}, 'Chemistry'),
+    el('h2',{}, '🧪 Different Types of Batteries Used in EVs'),
+    el('p',{}, 'Five main battery technologies powering EVs today and in the future — traded off across energy density, cycle life, cost, and weight.')
+  ));
+
+  const metricBlock = el('div',{class:'block'});
+  const head = el('div',{style:'display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;'},
+    el('h4',{style:'margin:0;'}, '⚖️ Compare by metric'),
+    el('div',{class:'toggle-group', id:'metricToggle'},
+      el('button',{class:'active', 'data-m':'density'}, 'Energy Density'),
+      el('button',{'data-m':'cycles'}, 'Cycle Life'),
+    )
+  );
+  metricBlock.appendChild(head);
+  const chartHost = el('div',{id:'chemChart'});
+  metricBlock.appendChild(chartHost);
+  sec.appendChild(metricBlock);
+
+  function drawMetric(metric){
+    chartHost.innerHTML='';
+    const max = metric==='density' ? 500 : 10000;
+    const rows = BATTERIES.map(b=>{
+      const range = metric==='density' ? b.density : b.cycles;
+      const unit = metric==='density' ? ' Wh/kg' : ' cycles';
+      return {label:b.name.split(' (')[0], value:range[1], color:b.color, display:`${range[0]}–${range[1]}${unit}`};
+    });
+    barChart(chartHost, rows, {max});
+  }
+  drawMetric('density');
+  document.addEventListener('click', (e)=>{
+    if(e.target.closest('#metricToggle button')){
+      const btn = e.target.closest('button');
+      document.querySelectorAll('#metricToggle button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      drawMetric(btn.dataset.m);
+    }
+  });
+
+  const cardGrid = el('div',{class:'grid-3'});
+  BATTERIES.forEach(b=>{
+    cardGrid.appendChild(el('div',{class:'block', style:`border-top:3px solid ${b.color};`},
+      el('h4',{style:`color:${b.color}; text-transform:none; letter-spacing:0; font-size:15px;`}, b.name),
+      el('p',{style:'font-size:12px; margin-bottom:10px;'}, b.tag),
+      el('table',{class:'spec', style:'font-size:12px;'},
+        el('tr',{}, el('td',{},'Energy density'), el('td',{class:'win'}, `${b.density[0]}–${b.density[1]} Wh/kg`)),
+        el('tr',{}, el('td',{},'Cycle life'), el('td',{class:'win'}, `${b.cycles[0]}–${b.cycles[1]}${b.cycles[1]>=10000?'+':''}`)),
+        el('tr',{}, el('td',{},'Cost'), el('td',{},b.cost)),
+        el('tr',{}, el('td',{},'Weight'), el('td',{},b.weight)),
+      ),
+      el('div',{style:'margin-top:10px; font-size:11.5px; color:var(--good); font-weight:700;'}, '✓ ' + b.pros.join(' · ')),
+      el('div',{style:'margin-top:6px; font-size:11.5px; color:var(--critical); font-weight:700;'}, '✗ ' + b.cons.join(' · ')),
+      el('div',{style:'margin-top:10px;'}, b.usedIn.map(u=> el('span',{class:'chip', style:'font-size:11px;'}, u)))
+    ));
+  });
+  sec.appendChild(cardGrid);
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '📉 Discharge Curve Shape by Chemistry (illustrative)'),
+    (()=>{ const h=el('div',{});
+      h.appendChild(multiLineSVG(DISCHARGE_CURVES.map(c=>({points:c.points, color:c.color})), {xLabels:['100%','80%','60%','40%','20%','10%','0%'], yMin:0.8, yMax:4.5, yUnit:'V'}));
+      h.appendChild(el('div',{class:'legend'}, DISCHARGE_CURVES.map(c=> el('div',{class:'item'}, el('span',{class:'sw', style:`background:${c.color}`}), c.name))));
+      return h; })(),
+    el('p',{style:'font-size:12px; margin-top:8px;'}, 'LiFePO4\'s long flat plateau is great for safety and cycle life, but makes OCV-based SOC estimation much less sensitive than a sloped curve like Li-ion/NMC — small voltage measurement errors translate into bigger SOC errors on a flat curve.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🔄 Charging / Discharging / Idle — What the Voltage Is Actually Doing'),
+    el('div',{class:'grid-3'},
+      el('div',{},
+        el('div',{style:'font-size:13px; font-weight:700; color:var(--good); margin-bottom:4px;'}, '🔌 Charging'),
+        el('p',{style:'font-size:12.5px;'}, 'Most Li-ion-family cells charge CC-CV: constant current ramps voltage up to a ceiling, then the charger holds that voltage while current tapers as the cell fills. Terminal voltage runs above true OCV because of the I×R rise.')
+      ),
+      el('div',{},
+        el('div',{style:'font-size:13px; font-weight:700; color:var(--serious); margin-bottom:4px;'}, '⬇️ Discharging'),
+        el('p',{style:'font-size:12.5px;'}, 'Terminal voltage sags below OCV by roughly I×R, plus slower diffusion polarization under sustained load — which is why a loaded voltage reading alone is a poor SOC proxy.')
+      ),
+      el('div',{},
+        el('div',{style:'font-size:13px; font-weight:700; color:var(--blue); margin-bottom:4px;'}, '💤 Idle / Rest'),
+        el('p',{style:'font-size:12.5px;'}, 'Voltage relaxes back toward true OCV over minutes — this relaxation is exactly what OCV-based SOC estimation waits for. Self-discharge during long idle periods is chemistry-dependent (NiMH loses charge noticeably faster than Li-ion/LiFePO4).')
+      ),
+    )
+  ));
+
+  sec.appendChild(el('div',{class:'disclaimer-box'}, '⚠️ Values are approximate and vary by manufacturer and application. Battery technology is evolving rapidly.'));
+}
+
+/* =========================================================
+   SECTION: IGBT vs MOSFET
+   ========================================================= */
+function renderSwitch(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.violet}`}, 'Power Stage'),
+    el('h2',{}, '🔌 IGBT-Based vs MOSFET-Based BMS'),
+    el('p',{}, 'Choosing the right power switch for a battery management system — a trade-off between voltage/power capability and switching speed/efficiency.')
+  ));
+
+  const grid = el('div',{class:'grid-2'});
+  [SWITCHES.igbt, SWITCHES.mosfet].forEach(s=>{
+    grid.appendChild(el('div',{class:'block', style:`border-top:3px solid ${s.color};`},
+      el('h4',{style:`color:${s.color}; text-transform:none; font-size:16px;`}, s.name + ' Based BMS'),
+      el('p',{style:'font-size:12px;'}, s.full),
+      el('ul',{style:'margin:10px 0 0 18px; padding:0; font-size:13px; color:var(--text-secondary);'}, s.points.map(p=>el('li',{style:'margin-bottom:5px;'}, p)))
+    ));
+  });
+  sec.appendChild(grid);
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '📈 Relative Spec Comparison'),
+    (()=>{ const h=el('div',{}); specBars(h, [
+      {label:'Switching Speed (slow → very fast)', a:SWITCHES.igbt.spec.speed, b:SWITCHES.mosfet.spec.speed},
+      {label:'Conduction Loss (low → high)', a:SWITCHES.igbt.spec.condLoss, b:SWITCHES.mosfet.spec.condLoss},
+      {label:'Switching Loss (low → high)', a:SWITCHES.igbt.spec.switchLoss, b:SWITCHES.mosfet.spec.switchLoss},
+      {label:'Efficiency (low → high)', a:SWITCHES.igbt.spec.efficiency, b:SWITCHES.mosfet.spec.efficiency},
+    ]); return h; })()
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '📋 Full Comparison Table'),
+    el('table',{class:'spec'},
+      el('tr',{}, el('th',{},'Parameter'), el('th',{style:`color:${COLORS.orange}`},'IGBT'), el('th',{style:`color:${COLORS.blue}`},'MOSFET')),
+      el('tr',{}, el('td',{},'Voltage Rating'), el('td',{},SWITCHES.igbt.spec.voltage), el('td',{},SWITCHES.mosfet.spec.voltage)),
+      el('tr',{}, el('td',{},'Current Handling'), el('td',{},SWITCHES.igbt.spec.current), el('td',{},SWITCHES.mosfet.spec.current)),
+      el('tr',{}, el('td',{},'Thermal Tolerance'), el('td',{},SWITCHES.igbt.spec.thermal), el('td',{},SWITCHES.mosfet.spec.thermal)),
+      el('tr',{}, el('td',{},'Size'), el('td',{},SWITCHES.igbt.spec.size), el('td',{},SWITCHES.mosfet.spec.size)),
+      el('tr',{}, el('td',{},'Cost'), el('td',{},SWITCHES.igbt.spec.cost), el('td',{},SWITCHES.mosfet.spec.cost)),
+      el('tr',{}, el('td',{},'Typical Application'), el('td',{},SWITCHES.igbt.spec.app), el('td',{},SWITCHES.mosfet.spec.app)),
+    )
+  ));
+
+  // Decision helper
+  const decideBlock = el('div',{class:'block'},
+    el('h4',{}, '🧭 Which one fits your system? Enter a voltage'),
+    el('label',{class:'field'}, 'System Voltage (V)'),
+    el('input',{type:'number', id:'sysV', value:'96', min:'1'}),
+    el('div',{id:'decideResult', style:'margin-top:14px; font-size:14px; font-weight:700;'})
+  );
+  sec.appendChild(decideBlock);
+  function decide(){
+    const v = parseFloat(document.getElementById('sysV').value)||0;
+    const out = document.getElementById('decideResult');
+    if(v>=250){
+      out.innerHTML = `<span style="color:${COLORS.orange}">→ IGBT-based BMS</span> — high voltage & high power territory; IGBTs handle the voltage/current and thermal load better here.`;
+    } else {
+      out.innerHTML = `<span style="color:${COLORS.blue}">→ MOSFET-based BMS</span> — for most lithium packs in the 12V–250V range, MOSFETs give better efficiency, faster switching, and a more compact design.`;
+    }
+  }
+  setTimeout(()=>{ document.getElementById('sysV').addEventListener('input', decide); decide(); },0);
+
+  const whenGrid = el('div',{class:'grid-2'});
+  whenGrid.appendChild(el('div',{class:'block'}, el('h4',{style:`color:${COLORS.orange}`}, 'Use IGBT when'), el('ul',{style:'margin:0 0 0 18px; padding:0; font-size:13px; color:var(--text-secondary);'}, SWITCHES.igbt.when.map(w=>el('li',{style:'margin-bottom:5px;'},w)))));
+  whenGrid.appendChild(el('div',{class:'block'}, el('h4',{style:`color:${COLORS.blue}`}, 'Use MOSFET when'), el('ul',{style:'margin:0 0 0 18px; padding:0; font-size:13px; color:var(--text-secondary);'}, SWITCHES.mosfet.when.map(w=>el('li',{style:'margin-bottom:5px;'},w)))));
+  sec.appendChild(whenGrid);
+
+  sec.appendChild(el('div',{class:'disclaimer-box'}, '💡 Key takeaway: for most lithium packs (12V–500V), MOSFET-based BMS is the usual pick for efficiency, speed, and compactness. For high-voltage, high-power systems, IGBT-based BMS is the better option.'));
+}
+
+/* =========================================================
+   SECTION: TVS vs MOV
+   ========================================================= */
+function renderProtect(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.orange}`}, 'Protection'),
+    el('h2',{}, '🛡️ TVS vs MOV in Automotive Applications'),
+    el('p',{}, 'Two very different transient protectors — fast, precise clamping vs high-energy surge absorption. Real automotive protection circuits usually need both.')
+  ));
+
+  const grid = el('div',{class:'grid-2'});
+  [TVS, MOV].forEach(d=>{
+    grid.appendChild(el('div',{class:'block', style:`border-top:3px solid ${d.color};`},
+      el('h4',{style:`color:${d.color}; text-transform:none; font-size:16px;`}, d.name),
+      el('p',{style:'font-size:12px; font-style:italic;'}, d.sub),
+      el('p',{style:'font-size:13px;'}, d.desc),
+      el('div',{style:'font-size:12px; font-weight:700; color:var(--text-primary); margin:10px 0 6px;'}, 'Key characteristics'),
+      el('ul',{style:'margin:0 0 10px 18px; padding:0; font-size:12.5px; color:var(--text-secondary);'}, d.chars.map(c=>el('li',{style:'margin-bottom:4px;'},c))),
+      el('div',{style:'font-size:12px; font-weight:700; color:var(--text-primary); margin-bottom:6px;'}, 'Typical applications'),
+      el('div',{}, d.apps.map(a=> el('span',{class:'chip', style:'font-size:11px;'}, a)))
+    ));
+  });
+  sec.appendChild(grid);
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '⚡ Clamping Behavior (illustrative)'),
+    (()=>{ const h=el('div',{}); h.appendChild(clampingSVG());
+      h.appendChild(el('div',{class:'legend'},
+        el('div',{class:'item'}, el('span',{class:'sw', style:'background:#7c8aa0'}), 'Unprotected transient'),
+        el('div',{class:'item'}, el('span',{class:'sw', style:`background:${COLORS.blue}`}), 'Clamped by TVS (fast, precise)'),
+        el('div',{class:'item'}, el('span',{class:'sw', style:`background:${COLORS.orange}`}), 'Clamped by MOV (higher energy)'),
+      ));
+      return h; })()
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🚗 Common Automotive Transients'),
+    el('div',{class:'grid-2'}, TRANSIENTS.map(([n,v])=> el('div',{style:'background:var(--surface-hi); border-radius:10px; padding:12px 14px;'},
+      el('div',{style:'font-size:12.5px; font-weight:700;'}, n), el('div',{style:'font-size:12px; color:var(--text-secondary);'}, v)
+    )))
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🧭 Selection Guide — click a scenario'),
+    (()=>{
+      const scenarios = [
+        {k:'ESD / Fast Signal Transient (ECU, sensor, I/O)', pick:'TVS'},
+        {k:'CAN / LIN / USB / Ethernet', pick:'TVS'},
+        {k:'Load Dump / Surge / High Energy', pick:'MOV'},
+        {k:'AC Mains / External Power Surge', pick:'MOV'},
+        {k:'Best Performance & Reliability', pick:'MOV + TVS'},
+      ];
+      const host = el('div',{});
+      const result = el('div',{id:'protectResult', style:'margin-top:14px; font-size:14px; font-weight:700; min-height:22px;'}, 'Click a scenario above ↑');
+      scenarios.forEach(s=>{
+        host.appendChild(el('button',{class:'btn', style:'margin:0 8px 8px 0;', onclick:()=>{
+          const color = s.pick==='TVS'?COLORS.blue : s.pick==='MOV'?COLORS.orange : COLORS.aqua;
+          result.innerHTML = `${s.k} → <span style="color:${color}">Use ${s.pick}</span>`;
+        }}, s.k));
+      });
+      host.appendChild(result);
+      return host;
+    })()
+  ));
+
+  sec.appendChild(el('div',{class:'disclaimer-box'}, '💡 Why use both: MOV absorbs high-energy surges. TVS clamps fast transients at a safe voltage level. Together they cover the full transient spectrum on automotive power/signal lines.'));
+}
+
+/* =========================================================
+   SECTION: HV CONTACTOR + PRE-CHARGE
+   ========================================================= */
+function contactorSVG(state){
+  const W=610, H=200;
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', style:'height:auto; display:block;'});
+  const wireColor = '#3a4a63', onColor = '#d95926', offColor='#3a4a63';
+  function wire(x1,y1,x2,y2,active){ svg.appendChild(svgEl('line',{x1,y1,x2,y2, stroke: active?onColor:wireColor, 'stroke-width':active?3:2})); }
+  function label(x,y,t,opts={}){ const n=svgEl('text',{x,y,'font-size':opts.size||10.5, fill:opts.fill||'#b9c4d4','text-anchor':opts.anchor||'start','font-weight':opts.w||600}); n.textContent=t; svg.appendChild(n); }
+  function sw(cx,cy,closed,active,label_){
+    // switch symbol: two terminals + moving contact
+    wire(cx-22,cy,cx-8,cy, active);
+    wire(cx+8,cy,cx+22,cy, active);
+    const angle = closed ? 0 : -22;
+    const rad = angle*Math.PI/180;
+    const ex = cx+8+14*Math.cos(rad), ey = cy+14*Math.sin(rad);
+    svg.appendChild(svgEl('circle',{cx:cx-8, cy, r:3, fill: active?onColor:'#7c8aa0'}));
+    svg.appendChild(svgEl('circle',{cx:cx+8, cy, r:3, fill: active?onColor:'#7c8aa0'}));
+    svg.appendChild(svgEl('line',{x1:cx-8, y1:cy, x2:ex, y2:ey, stroke: active?onColor:'#c3c2b7', 'stroke-width':2.4, 'stroke-linecap':'round'}));
+    label(cx, cy+22, label_, {anchor:'middle', size:10});
+  }
+
+  // battery symbol left
+  label(30,40,'HV Battery',{w:700, fill:'#f5f7fa'});
+  wire(60,55,60,80,false);
+  svg.appendChild(svgEl('line',{x1:44,y1:80,x2:76,y2:80, stroke:'#b9c4d4','stroke-width':3}));
+  svg.appendChild(svgEl('line',{x1:52,y1:90,x2:68,y2:90, stroke:'#b9c4d4','stroke-width':1.5}));
+  wire(60,90,60,150,false);
+  label(20,78,'+',{fill:'#e66767', size:13, w:800});
+  label(20,152,'−',{fill:'#3987e5', size:13, w:800});
+
+  // top rail: battery+ -> nodeA -> main+ -> nodeB -> inverter+
+  const yTop=55, yBot=150;
+  const nodeA=150, nodeB=380;
+  wire(60,yTop,nodeA,yTop, state.flow==='main');
+  sw(nodeA+45,yTop, state.main, state.flow==='main', 'Main + ');
+  wire(nodeA+67,yTop,nodeB,yTop, state.flow==='main');
+  wire(nodeB,yTop,500,yTop, state.flow==='main');
+
+  // pre-charge branch (parallel, arcing above)
+  const yPc = 25;
+  wire(nodeA,yTop, nodeA, yPc, state.flow==='pc');
+  wire(nodeA,yPc, nodeA+70, yPc, state.flow==='pc');
+  sw(nodeA+95, yPc, state.pc, state.flow==='pc', '');
+  // resistor zigzag
+  const rx = nodeA+130, ry=yPc;
+  let zig = `M${rx-14},${ry} `;
+  for(let i=0;i<6;i++){ zig += `L${rx-14+i*5+2},${ry+(i%2===0?-6:6)} `; }
+  zig += `L${rx+18},${ry}`;
+  svg.appendChild(svgEl('path',{d:zig, fill:'none', stroke: state.flow==='pc' ? onColor:'#7c8aa0', 'stroke-width':1.8}));
+  wire(rx+18,yPc, nodeB, yPc, state.flow==='pc');
+  wire(nodeB,yPc, nodeB, yTop, state.flow==='pc');
+  label(nodeA+95, yPc-14, 'Pre-Charge', {anchor:'middle', size:9.5});
+  label(rx+2, ry+22, 'R', {anchor:'middle', size:10});
+
+  // bottom rail
+  wire(60,yBot,nodeA,yBot, state.flow!=='none');
+  sw(nodeA+45,yBot, state.main, state.flow!=='none', 'Main − ');
+  wire(nodeA+67,yBot,500,yBot, state.flow!=='none');
+
+  // DC-link capacitor
+  svg.appendChild(svgEl('line',{x1:500,y1:yTop,x2:500,y2:yTop+30, stroke:wireColor,'stroke-width':2}));
+  svg.appendChild(svgEl('line',{x1:500,y1:yBot-30,x2:500,y2:yBot, stroke:wireColor,'stroke-width':2}));
+  const capH = 40*(state.cap/100);
+  svg.appendChild(svgEl('rect',{x:492, y:(yTop+yBot)/2 - capH/2, width:16, height:Math.max(capH,2), fill: state.cap>0 ? '#199e70' : '#2c2c2a', opacity:0.85, rx:2}));
+  svg.appendChild(svgEl('rect',{x:492, y:(yTop+yBot)/2 - 20, width:16, height:40, fill:'none', stroke:'#7c8aa0','stroke-width':1.2, rx:2}));
+  label(500, yTop+15, 'DC-Link', {anchor:'middle', size:9.5});
+  label(500, (yTop+yBot)/2+45, `${state.cap}%`, {anchor:'middle', size:11, fill:'#f5f7fa', w:800});
+
+  label(535, (yTop+yBot)/2, 'Inverter', {anchor:'start', size:10});
+  return svg;
+}
+
+function renderContactor(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.red}`}, 'HV Safety'),
+    el('h2',{}, '🧯 HV Battery Contactor + Pre-Charge Circuit'),
+    el('p',{}, 'How the HV battery safely connects to the vehicle without slamming a discharged DC-link capacitor with a huge inrush current.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '❓ What is an HV Contactor?'),
+    el('p',{}, 'An electrically controlled switch designed to connect or disconnect a high-voltage / high-current path. Contactors let the system electrically isolate the HV battery from the vehicle\'s HV load when the system isn\'t commanded to operate, or when a protection strategy requires disconnection.'),
+    el('div',{},
+      el('span',{class:'chip'}, '➕ Positive Main Contactor'),
+      el('span',{class:'chip'}, '➖ Negative Main Contactor'),
+      el('span',{class:'chip'}, '⏱ Pre-Charge Contactor (+ resistor)'),
+    ),
+    el('p',{style:'font-size:12px; margin-top:10px;'}, 'The exact number, arrangement and control strategy of contactors is system / OEM dependent. The BMS can monitor and coordinate contactor operation, but BMS ≠ Contactor and BMS ≠ Pre-Charge Circuit — they are different parts of the overall HV system.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '⚠️ Why Is Pre-Charge Needed?'),
+    el('p',{}, 'Many EV powertrains contain a DC-link capacitor at the inverter/HV load. When this capacitor is initially discharged, connecting it directly to a high-voltage battery creates a large inrush current. A pre-charge circuit limits this initial current while the DC-link capacitor charges toward battery voltage.'),
+    el('p',{style:'font-size:12.5px; color:var(--critical);'}, 'Without appropriate inrush-current control: excessive electrical stress can damage components and contribute to contactor contact pitting or welding.')
+  ));
+
+  // Stepper + diagram
+  const stepBlock = el('div',{class:'block'},
+    el('h4',{}, '🎬 Typical Passive Pre-Charge Sequence — click through the steps'),
+    el('div',{class:'stepper', id:'pcStepper'}),
+    el('div',{id:'pcDiagram', style:'margin:14px 0;'}),
+    el('div',{id:'pcDesc', style:'font-size:13.5px; color:var(--text-secondary);'})
+  );
+  sec.appendChild(stepBlock);
+
+  const stepperHost = stepBlock.querySelector('#pcStepper');
+  PRECHARGE_STEPS.forEach((s,i)=>{
+    stepperHost.appendChild(el('button',{class:'step-dot'+(i===0?' active':''), 'data-i':i},
+      el('span',{class:'n'}, s.n), s.name));
+  });
+  function showStep(i){
+    const s = PRECHARGE_STEPS[i];
+    stepperHost.querySelectorAll('.step-dot').forEach((d,idx)=> d.classList.toggle('active', idx===i));
+    const dHost = document.getElementById('pcDiagram'); dHost.innerHTML='';
+    dHost.appendChild(contactorSVG(s));
+    document.getElementById('pcDesc').textContent = `Step ${s.n} — ${s.name}: ${s.desc}`;
+  }
+  stepperHost.addEventListener('click', e=>{
+    const btn = e.target.closest('.step-dot'); if(!btn) return;
+    showStep(parseInt(btn.dataset.i));
+  });
+  setTimeout(()=> showStep(0), 0);
+
+  // RC calculator
+  const rcBlock = el('div',{class:'block'},
+    el('h4',{}, '🧮 Why the resistor matters — τ = R × C'),
+    el('p',{style:'font-size:12.5px;'}, 'In a passive pre-charge circuit, the resistor limits the initial inrush current into the DC-link capacitor. For an ideal RC charging curve, at t = τ, V ≈ 63% of the final value.'),
+    el('div',{class:'grid-2'},
+      el('div',{},
+        el('label',{class:'field'}, 'Pre-Charge Resistor R (Ω)'),
+        el('input',{type:'number', id:'rVal', value:'50', min:'0.1', step:'0.1'}),
+        el('div',{style:'height:10px;'}),
+        el('label',{class:'field'}, 'DC-Link Capacitance C (µF)'),
+        el('input',{type:'number', id:'cVal', value:'2000', min:'1'}),
+        el('div',{id:'tauOut', style:'margin-top:14px; font-size:14px; font-weight:700;'})
+      ),
+      el('div',{id:'rcChart'})
+    ),
+    el('p',{style:'font-size:11.5px; color:var(--text-muted); margin-top:10px;'}, '⚠️ Illustrative calculator only — actual resistor value, capacitor size, allowable inrush current, pre-charge time and thermal requirements must be calculated for the specific system. Do not treat any generic value or time as a universal EV specification.')
+  );
+  sec.appendChild(rcBlock);
+  function drawRC(){
+    const R = parseFloat(document.getElementById('rVal').value)||1;
+    const C = parseFloat(document.getElementById('cVal').value)||1;
+    const host = document.getElementById('rcChart'); host.innerHTML='';
+    const {svg, tau} = rcCurveSVG(R,C);
+    host.appendChild(svg);
+    document.getElementById('tauOut').innerHTML = `τ = R × C = ${R} Ω × ${C} µF = <span style="color:${COLORS.orange}">${(tau*1000).toFixed(2)} ms</span>`;
+  }
+  setTimeout(()=>{
+    document.getElementById('rVal').addEventListener('input', drawRC);
+    document.getElementById('cVal').addEventListener('input', drawRC);
+    drawRC();
+  },0);
+
+  // What BMS does
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🧠 What the BMS Does Here'),
+    el('div',{class:'grid-2'},
+      el('div',{}, ['Monitor battery voltage, current, temperature and HV conditions','Monitor safety interlocks (e.g. HVIL, isolation)'].map(t=>el('div',{style:'margin-bottom:8px; font-size:13px;'}, '🔋 '+t))),
+      el('div',{}, ['Control / coordinate the contactor sequence','Detect faults and open contactors if required'].map(t=>el('div',{style:'margin-bottom:8px; font-size:13px;'}, '⚠️ '+t))),
+    )
+  ));
+
+  // Diagnostics interactive checklist
+  const diagBlock = el('div',{class:'block'},
+    el('h4',{}, '🔍 Practical Diagnostic Checklist'),
+    el('div',{id:'diagList'})
+  );
+  const diagList = diagBlock.querySelector('#diagList');
+  PC_DIAGNOSTIC.forEach((q,i)=>{
+    const row = el('label',{class:'diagnostic-item'}, el('input',{type:'checkbox'}), `${i+1}. ${q}`);
+    row.querySelector('input').addEventListener('change', function(){ row.classList.toggle('checked', this.checked); });
+    diagList.appendChild(row);
+  });
+  sec.appendChild(diagBlock);
+
+  const twoCol = el('div',{class:'grid-2'});
+  twoCol.appendChild(el('div',{class:'block'}, el('h4',{}, '🚫 Common Pre-Charge Problems'), el('div',{}, PC_PROBLEMS.map(p=> el('div',{style:'font-size:12.5px; color:var(--text-secondary); margin-bottom:6px;'}, '• '+p)))));
+  twoCol.appendChild(el('div',{class:'block'}, el('h4',{}, '💥 Consequences of Skipping Pre-Charge'), el('div',{}, PC_CONSEQUENCES.map(p=> el('div',{style:'font-size:12.5px; color:var(--critical); margin-bottom:6px;'}, '• '+p)))));
+  sec.appendChild(twoCol);
+
+  sec.appendChild(el('div',{class:'disclaimer-box'}, '⚡ EV HV battery systems can contain lethal voltage and high available fault current. Do not use a generic social-media procedure to work on a live HV pack. Always follow the vehicle manufacturer\'s HV safety procedure, isolation checks, PPE requirements and approved test equipment.'));
+}
+
+/* =========================================================
+   EXTRA CHART HELPERS (part 2)
+   ========================================================= */
+function multiLineSVG(series, {xLabels, yMin, yMax, yUnit=''}){
+  const W=580, H=230, pad={l:44,r:14,t:14,b:26};
+  const plotW=W-pad.l-pad.r, plotH=H-pad.t-pad.b;
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', style:'height:auto; display:block;'});
+  const n = xLabels.length;
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    const y = pad.t + plotH - f*plotH;
+    svg.appendChild(svgEl('line',{x1:pad.l,x2:W-pad.r,y1:y,y2:y, stroke:'#2c2c2a','stroke-width':1}));
+    const val = (yMin + f*(yMax-yMin)).toFixed(1);
+    const t = svgEl('text',{x:pad.l-6,y:y+3,'font-size':9,fill:'#7c8aa0','text-anchor':'end'}); t.textContent=val+yUnit; svg.appendChild(t);
+  });
+  xLabels.forEach((lb,i)=>{
+    const x = pad.l + (i/(n-1))*plotW;
+    const t = svgEl('text',{x,y:H-8,'font-size':9,fill:'#7c8aa0','text-anchor':'middle'}); t.textContent=lb; svg.appendChild(t);
+  });
+  series.forEach(s=>{
+    let d='';
+    s.points.forEach((v,i)=>{
+      const x = pad.l + (i/(n-1))*plotW;
+      const y = pad.t + plotH - ((v-yMin)/(yMax-yMin))*plotH;
+      d += (i===0?'M':'L') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+    });
+    svg.appendChild(svgEl('path',{d, fill:'none', stroke:s.color, 'stroke-width':2.4}));
+  });
+  return svg;
+}
+
+function blockDiagramSVG(){
+  const W=620, H=210;
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', style:'height:auto; display:block;'});
+  function box(x,y,w,h,label,sub,color){
+    svg.appendChild(svgEl('rect',{x,y,width:w,height:h, rx:8, fill:'#122544', stroke:color||'#3a4a63','stroke-width':1.4}));
+    const t1=svgEl('text',{x:x+w/2,y:y+h/2-(sub?5:-4),'font-size':10.5,fill:'#f5f7fa','text-anchor':'middle','font-weight':700}); t1.textContent=label; svg.appendChild(t1);
+    if(sub){ const t2=svgEl('text',{x:x+w/2,y:y+h/2+11,'font-size':8.5,fill:'#8fa0b8','text-anchor':'middle'}); t2.textContent=sub; svg.appendChild(t2); }
+  }
+  function arrow(x1,y1,x2,y2,dashed){
+    svg.appendChild(svgEl('line',{x1,y1,x2,y2, stroke:'#5a6c85','stroke-width':1.6, 'stroke-dasharray': dashed?'4,3':'none'}));
+    svg.appendChild(svgEl('polygon',{points:`${x2},${y2} ${x2-6},${y2-4} ${x2-6},${y2+4}`, fill:'#5a6c85'}));
+  }
+  box(10,20,110,50,'Cell Modules','V, per-cell tap', COLORS.aqua);
+  box(10,110,110,50,'NTC Sensors','busbar / module / coolant', COLORS.orange);
+  box(150,60,100,50,'AFE IC(s)','isoSPI daisy-chain', COLORS.violet);
+  arrow(120,45,150,80); arrow(120,135,150,95);
+  // isolation barrier
+  svg.appendChild(svgEl('line',{x1:275,y1:10,x2:275,y2:200, stroke:'#e66767','stroke-width':1.4,'stroke-dasharray':'6,4'}));
+  const isoLbl = svgEl('text',{x:275,y:10,'font-size':9,fill:'#f3a8a8','text-anchor':'middle'}); isoLbl.textContent='⟷ isolation barrier'; svg.appendChild(isoLbl);
+  box(300,60,110,50,'Master MCU','BCU — ASIL-D core', COLORS.blue);
+  arrow(250,85,300,85);
+  box(300,140,110,45,'Current Sensor','shunt / Hall-effect', COLORS.yellow);
+  arrow(360,140,355,110);
+  box(440,20,160,45,'Contactor Drivers','NEG / PRE / POS gate drive', COLORS.red);
+  arrow(410,75,440,45);
+  box(440,140,160,45,'CAN / CAN-FD','to inverter, charger, cluster', COLORS.aqua);
+  arrow(410,95,440,160);
+  return svg;
+}
+
+function sensorMapSVG(){
+  const W=560, H=230;
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', style:'height:auto; display:block;'});
+  svg.appendChild(svgEl('rect',{x:10,y:10,width:400,height:180, rx:10, fill:'#0e1a2f', stroke:'#3a4a63','stroke-width':1.4}));
+  const cols=4, rows=3, mw=90, mh=50, ox=20, oy=25, gap=6;
+  const ntcAt = new Set(['0,0','3,0','0,2','3,2','1,1']);
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const x = ox + c*(mw+gap), y = oy + r*(mh+gap);
+      svg.appendChild(svgEl('rect',{x,y,width:mw,height:mh, rx:5, fill:'#152a4a', stroke:'#3a4a63'}));
+      const t=svgEl('text',{x:x+8,y:y+14,'font-size':8.5,fill:'#8fa0b8'}); t.textContent=`Module ${r*cols+c+1}`; svg.appendChild(t);
+      if(ntcAt.has(`${c},${r}`)){
+        svg.appendChild(svgEl('circle',{cx:x+mw-12, cy:y+mh-12, r:5, fill:COLORS.orange}));
+        const lb=svgEl('text',{x:x+mw-12,y:y+mh-19,'font-size':7,fill:'#f3c3a8','text-anchor':'middle'}); lb.textContent='NTC'; svg.appendChild(lb);
+      }
+      // voltage sense tick
+      svg.appendChild(svgEl('line',{x1:x+mw/2,y1:y,x2:x+mw/2,y2:y-6, stroke:COLORS.aqua,'stroke-width':1.6}));
+    }
+  }
+  // current sensor at pack output
+  svg.appendChild(svgEl('rect',{x:426,y:60,width:110,height:34, rx:6, fill:'#1a1200', stroke:COLORS.yellow}));
+  const cs=svgEl('text',{x:481,y:81,'font-size':9,fill:'#f0d9a8','text-anchor':'middle'}); cs.textContent='⚡ Current sensor'; svg.appendChild(cs);
+  svg.appendChild(svgEl('line',{x1:410,y1:77,x2:426,y2:77, stroke:'#5a6c85','stroke-width':1.6}));
+  // coolant
+  svg.appendChild(svgEl('line',{x1:60,y1:200,x2:60,y2:215, stroke:COLORS.blue,'stroke-width':2}));
+  const cin=svgEl('text',{x:60,y:227,'font-size':8,fill:'#8fb8f0','text-anchor':'middle'}); cin.textContent='coolant in'; svg.appendChild(cin);
+  svg.appendChild(svgEl('line',{x1:360,y1:200,x2:360,y2:215, stroke:COLORS.orange,'stroke-width':2}));
+  const cout=svgEl('text',{x:360,y:227,'font-size':8,fill:'#f3c3a8','text-anchor':'middle'}); cout.textContent='coolant out'; svg.appendChild(cout);
+  // legend
+  const leg = [['🟠 NTC temperature','orange'],['| voltage sense tap','aqua'],['🟡 pack current sensor','yellow']];
+  return svg;
+}
+
+function coolingLoopSVG(){
+  const W=610, H=150;
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, width:'100%', style:'height:auto; display:block;'});
+  function box(x,y,w,h,label,color){
+    svg.appendChild(svgEl('rect',{x,y,width:w,height:h, rx:8, fill:'#122544', stroke:color,'stroke-width':1.4}));
+    const t=svgEl('text',{x:x+w/2,y:y+h/2+4,'font-size':10,fill:'#f5f7fa','text-anchor':'middle','font-weight':700}); t.textContent=label; svg.appendChild(t);
+  }
+  function arrow(x1,y1,x2,y2){
+    svg.appendChild(svgEl('line',{x1,y1,x2,y2, stroke:'#5a6c85','stroke-width':1.6}));
+    svg.appendChild(svgEl('polygon',{points:`${x2},${y2} ${x2-5},${y2-4} ${x2-5},${y2+4}`, fill:'#5a6c85'}));
+  }
+  box(20,55,90,40,'Pump', COLORS.blue);
+  arrow(110,75,160,75);
+  box(160,20,140,110,'Battery Cold Plates', COLORS.aqua);
+  arrow(300,75,350,75);
+  box(350,55,90,40,'Chiller', COLORS.violet);
+  arrow(440,75,490,75);
+  box(490,55,90,40,'Radiator', COLORS.orange);
+  svg.appendChild(svgEl('path',{d:'M535,55 L535,20 L65,20 L65,55', fill:'none', stroke:'#5a6c85','stroke-width':1.4,'stroke-dasharray':'4,3'}));
+  svg.appendChild(svgEl('polygon',{points:'65,55 61,45 69,45', fill:'#5a6c85'}));
+  const lbl=svgEl('text',{x:300,y:12,'font-size':8.5,fill:'#7c8aa0','text-anchor':'middle'}); lbl.textContent='glycol/water loop returns to pump'; svg.appendChild(lbl);
+  return svg;
+}
+
+/* =========================================================
+   SECTION: HARDWARE — MCU, AFE & SENSORS
+   ========================================================= */
+function renderHardware(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.aqua}`}, 'Architecture'),
+    el('h2',{}, '🖥️ MCU, AFE &amp; Sensor Architecture'.replace('&amp;','&')),
+    el('p',{}, 'Every SOC/SOH number and every protection decision starts as a raw signal somewhere on the pack. Here\'s where those signals physically come from, and how they get to the microcontroller.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🧭 Signal Flow — Cells to Vehicle CAN Bus'),
+    (()=>{ const h=el('div',{}); h.appendChild(blockDiagramSVG()); return h; })(),
+    el('p',{style:'font-size:11.5px; color:var(--text-muted); margin-top:8px;'}, 'Simplified — illustrative topology. Exact partitioning (master/slave count, isoSPI vs CAN between boards) is system / OEM dependent.')
+  ));
+
+  const sensGrid = el('div',{class:'block'}, el('h4',{}, '📍 Where the Sensors Actually Live'));
+  SENSORS.forEach(s=>{
+    sensGrid.appendChild(el('div',{style:'display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--card-border);'},
+      el('span',{style:'font-size:20px;'}, s.icon),
+      el('div',{},
+        el('div',{style:'font-size:13.5px; font-weight:700;'}, s.name),
+        el('div',{style:'font-size:12px; color:var(--text-secondary); margin-top:2px;'}, '📌 ' + s.where),
+        el('div',{style:'font-size:12px; color:var(--text-muted); margin-top:2px;'}, '→ ' + s.why),
+      )
+    ));
+  });
+  sec.appendChild(sensGrid);
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🗺️ Sensor Placement — Pack Top View (illustrative)'),
+    (()=>{ const h=el('div',{}); h.appendChild(sensorMapSVG());
+      h.appendChild(el('div',{class:'legend'},
+        el('div',{class:'item'}, el('span',{class:'sw', style:`background:${COLORS.orange}`}), 'NTC temperature sensor'),
+        el('div',{class:'item'}, el('span',{class:'sw', style:`background:${COLORS.aqua}`}), 'Per-module voltage sense tap'),
+        el('div',{class:'item'}, el('span',{class:'sw', style:`background:${COLORS.yellow}`}), 'Pack current sensor (output)'),
+      ));
+      return h; })()
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🧠 MCU &amp; AFE Roles'.replace('&amp;','&')),
+    el('table',{class:'spec'},
+      el('tr',{}, el('td',{class:'win'},'Master MCU'), el('td',{}, AFE_MCU.mcu)),
+      el('tr',{}, el('td',{class:'win'},'Analog Front End (AFE)'), el('td',{}, AFE_MCU.afe)),
+      el('tr',{}, el('td',{class:'win'},'Galvanic isolation'), el('td',{}, AFE_MCU.isolation)),
+      el('tr',{}, el('td',{class:'win'},'Vehicle communication'), el('td',{}, AFE_MCU.comms)),
+    )
+  ));
+
+  sec.appendChild(el('div',{class:'disclaimer-box'}, '📷 Diagrams here are original schematic-style illustrations built for this page (not stock photography) — they represent typical/illustrative BMS topology, not any specific OEM design.'));
+}
+
+/* =========================================================
+   SECTION: THERMAL MANAGEMENT
+   ========================================================= */
+function renderThermal(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.orange}`}, 'Thermal'),
+    el('h2',{}, '🌡️ Thermal Management'),
+    el('p',{}, 'Li-ion performance, life and safety are all strongly temperature dependent. Roughly 15–35°C is the sweet spot; degradation accelerates above ~45°C, power and capacity drop below 0°C, and charging below ~0–5°C risks lithium plating.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🔁 A Typical Liquid Cooling Loop'),
+    (()=>{ const h=el('div',{}); h.appendChild(coolingLoopSVG()); return h; })()
+  ));
+
+  const coolGrid = el('div',{class:'grid-2'});
+  COOLING_METHODS.forEach(c=>{
+    coolGrid.appendChild(el('div',{class:'block'},
+      el('h4',{style:'text-transform:none; font-size:14px;'}, c.name),
+      el('p',{style:'font-size:12.5px;'}, c.desc),
+      el('div',{style:'font-size:12px; color:var(--good); font-weight:700;'}, '✓ ' + c.pros.join(' · ')),
+      el('div',{style:'font-size:12px; color:var(--critical); font-weight:700; margin-top:4px;'}, '✗ ' + c.cons.join(' · ')),
+      el('div',{style:'font-size:11.5px; color:var(--text-muted); margin-top:6px;'}, 'Typical use: ' + c.use),
+    ));
+  });
+  sec.appendChild(coolGrid);
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🔥 Thermal Runaway &amp; Propagation'.replace('&amp;','&')),
+    el('p',{}, 'A cell driven into thermal runaway goes through a rough progression: SEI-layer breakdown (~90–120°C) → separator melt (~130–150°C) → cathode decomposition and gas venting (>150°C) → possible ignition of vented flammable electrolyte gases. The pack-level danger is propagation to neighboring cells.'),
+    el('div',{style:'display:flex; gap:6px; align-items:center; margin-top:12px; flex-wrap:wrap;'},
+      ['Cell 1','Cell 2 🔥 trigger','⟨barrier⟩','Cell 3','Cell 4'].map((c,i)=> el('div',{style:`padding:10px 14px; border-radius:8px; font-size:11.5px; font-weight:700; text-align:center; ${c.includes('🔥')?'background:rgba(208,59,59,0.2); border:1px solid var(--critical); color:#f3a8a8;':c.includes('barrier')?'background:transparent; border:1px dashed var(--good); color:var(--good);':'background:var(--surface-hi); border:1px solid var(--card-border);'}`}, c))
+    ),
+    el('p',{style:'font-size:12px; margin-top:10px;'}, 'Mitigations: cell-to-cell thermal barriers/insulation, dedicated venting channels, fire-resistant inter-module materials, and BMS early-warning detection (rate-of-rise dV/dt and dT/dt monitoring) to flag a runaway before it propagates.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '❄️ Cold-Side Considerations'),
+    el('p',{style:'font-size:13px;'}, 'Below 0°C, charge current is usually derated or blocked entirely to avoid lithium plating on the anode (a permanent capacity/safety hazard). Some architectures use PTC heaters, resistive heating pads, or even the traction motor as a heat source to precondition the pack before fast charging or in cold climates.')
+  ));
+}
+
+/* =========================================================
+   SECTION: BMS CONTROL ALGORITHM (ECU)
+   ========================================================= */
+function renderEcu(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.blue}`}, 'Firmware'),
+    el('h2',{}, '🧩 BMS Control Algorithm'),
+    el('p',{}, 'What the firmware actually does, tick after tick. This is the same state machine (IDLE → PRECHARGE → READY → CHARGING/DISCHARGING → FAULT_x) driving the live simulator further down the page.')
+  ));
+
+  const loopBlock = el('div',{class:'block'}, el('h4',{}, '🔄 Main Control Loop'));
+  ECU_LOOP.forEach(step=>{
+    loopBlock.appendChild(el('div',{style:'display:flex; gap:12px; padding:9px 0; border-bottom:1px solid var(--card-border);'},
+      el('div',{style:`flex:0 0 auto; width:26px; height:26px; border-radius:50%; background:${COLORS.blue}; color:#0b1220; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center;`}, step.n),
+      el('div',{},
+        el('div',{style:'font-size:13.5px; font-weight:700;'}, step.t),
+        el('div',{style:'font-size:12.5px; color:var(--text-secondary); margin-top:2px;'}, step.d),
+      )
+    ));
+  });
+  sec.appendChild(loopBlock);
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '💻 Simplified Pseudocode'),
+    el('pre',{style:'background:var(--bg); border:1px solid var(--card-border); border-radius:10px; padding:14px; overflow-x:auto; font-size:12px; line-height:1.6; color:#cfe0fb; font-family:Consolas,SF Mono,Fira Code,monospace;'}, ECU_PSEUDOCODE)
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '⚖️ Balancing Strategies'),
+    el('div',{class:'grid-2'},
+      el('div',{},
+        el('div',{style:'font-size:13px; font-weight:700; margin-bottom:4px;'}, 'Passive balancing'),
+        el('p',{style:'font-size:12.5px;'}, 'A bypass resistor + FET bleeds off cells sitting above (pack average + threshold), dissipating the excess as heat until the pack is level. Simple, cheap, but wastes energy and is slow.')
+      ),
+      el('div',{},
+        el('div',{style:'font-size:13px; font-weight:700; margin-bottom:4px;'}, 'Active balancing'),
+        el('p',{style:'font-size:12.5px;'}, 'Charge is shuttled between cells (capacitor, inductor or small DC-DC stage) instead of being burned off — more efficient and faster, at the cost of extra hardware complexity.')
+      )
+    )
+  ));
+}
+
+/* =========================================================
+   SECTION: DC-LINK, CABLES & LOSSES
+   ========================================================= */
+function renderPower(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.yellow}`}, 'Power Path'),
+    el('h2',{}, '🔗 DC-Link, Cables, Connectors &amp; Losses'.replace('&amp;','&')),
+    el('p',{}, 'Every ohm between the cells and the inverter costs watts as heat. Here\'s what makes up that resistance, and what the DC-link capacitor is actually doing.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '⚡ Role of the DC-Link Capacitor'),
+    el('p',{}, 'The DC-link capacitor sits right at the inverter input. It filters switching ripple from the power stage, provides a low-impedance path for the fast switching currents the inverter demands, and absorbs transient/regenerative energy spikes. It\'s usually a film or electrolytic capacitor bank sized for its ripple-current rating and voltage rating (with margin) — not just raw capacitance.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🧵 Cabling, Busbars &amp; Connectors'.replace('&amp;','&')),
+    el('p',{}, 'HV cables are shielded and orange by convention, sized for continuous/peak current and an acceptable voltage-drop budget. Busbars carry high current pack-internally with minimal resistance. Contact resistance at connectors and contactors — often just milliohms — is a common real-world source of localized heating, especially from a poor crimp or a loose connection.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🧮 Internal Resistance Model'),
+    el('p',{style:'font-size:12.5px;'}, 'A cell\'s DC internal resistance is commonly split into an ohmic term plus one or two RC branches for charge-transfer and diffusion polarization: R_s + (R1 ‖ C1) [+ (R2 ‖ C2)]. It grows at SOC extremes, low temperature, and with aging — which is exactly why resistance growth is one of the SOH indicators covered earlier.')
+  ));
+
+  const calcBlock = el('div',{class:'block'},
+    el('h4',{}, '🧮 Try it — I²R Loss Breakdown'),
+    el('div',{class:'grid-2'},
+      el('div',{},
+        el('label',{class:'field'}, 'Pack Current (A)'),
+        el('input',{type:'number', id:'lossI', value:String(LOSS_DEFAULTS.current)}),
+        el('div',{style:'height:10px;'}),
+        el('label',{class:'field'}, 'Cell/Pack Internal Resistance (mΩ)'),
+        el('input',{type:'number', id:'lossRcell', value:String(LOSS_DEFAULTS.rCell)}),
+        el('div',{style:'height:10px;'}),
+        el('label',{class:'field'}, 'Busbar Resistance (mΩ)'),
+        el('input',{type:'number', id:'lossRbus', value:String(LOSS_DEFAULTS.rBusbar)}),
+        el('div',{style:'height:10px;'}),
+        el('label',{class:'field'}, 'HV Cable Resistance (mΩ)'),
+        el('input',{type:'number', id:'lossRcab', value:String(LOSS_DEFAULTS.rCable)}),
+        el('div',{style:'height:10px;'}),
+        el('label',{class:'field'}, 'Connector / Contactor Resistance (mΩ)'),
+        el('input',{type:'number', id:'lossRcon', value:String(LOSS_DEFAULTS.rConnector)}),
+      ),
+      el('div',{id:'lossChart'})
+    ),
+    el('div',{id:'lossTotal', style:'margin-top:14px; font-size:14px; font-weight:700;'}),
+    el('p',{style:'font-size:11.5px; color:var(--text-muted); margin-top:8px;'}, '⚠️ Illustrative model only (P = I²R per component, summed). Real systems need proper thermal, duty-cycle and worst-case analysis.')
+  );
+  sec.appendChild(calcBlock);
+  function drawLoss(){
+    const I = parseFloat(document.getElementById('lossI').value)||0;
+    const rows = [
+      {label:'Cell / pack IR', mohm: parseFloat(document.getElementById('lossRcell').value)||0, color:COLORS.aqua},
+      {label:'Busbars', mohm: parseFloat(document.getElementById('lossRbus').value)||0, color:COLORS.blue},
+      {label:'HV cables', mohm: parseFloat(document.getElementById('lossRcab').value)||0, color:COLORS.orange},
+      {label:'Connectors/contactors', mohm: parseFloat(document.getElementById('lossRcon').value)||0, color:COLORS.magenta},
+    ];
+    const chartRows = rows.map(r=>({label:r.label, value: I*I*(r.mohm/1000), color:r.color, display:`${(I*I*(r.mohm/1000)).toFixed(1)} W`}));
+    const host = document.getElementById('lossChart'); host.innerHTML='';
+    barChart(host, chartRows, {max: Math.max(1,...chartRows.map(r=>r.value))});
+    const total = chartRows.reduce((a,r)=>a+r.value,0);
+    const totalR = rows.reduce((a,r)=>a+r.mohm,0);
+    document.getElementById('lossTotal').innerHTML = `Total loss ≈ <span style="color:${COLORS.orange}">${total.toFixed(1)} W</span> across ${totalR.toFixed(1)} mΩ at ${I} A — voltage drop ≈ ${(I*totalR/1000).toFixed(2)} V`;
+  }
+  setTimeout(()=>{
+    ['lossI','lossRcell','lossRbus','lossRcab','lossRcon'].forEach(id=> document.getElementById(id).addEventListener('input', drawLoss));
+    drawLoss();
+  },0);
+}
+
+/* =========================================================
+   SECTION: STANDARDS, SAFETY & TESTING
+   ========================================================= */
+function renderStandards(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.violet}`}, 'Compliance'),
+    el('h2',{}, '📐 Standards, Safety &amp; Testing'.replace('&amp;','&')),
+    el('p',{}, 'A production BMS/battery pack has to clear a stack of standards before it ever reaches a vehicle — functional safety, transport safety, cell/pack performance, and physical abuse testing.')
+  ));
+
+  const stdBlock = el('div',{class:'block'}, el('h4',{}, '📋 Key Standards'));
+  STANDARDS_LIST.forEach(s=>{
+    stdBlock.appendChild(el('div',{style:'padding:10px 0; border-bottom:1px solid var(--card-border);'},
+      el('div',{style:'font-size:13.5px; font-weight:700; color:var(--text-primary);'}, s.std),
+      el('div',{style:'font-size:12px; color:var(--text-muted); margin:2px 0 4px;'}, s.scope),
+      el('div',{style:'font-size:12.5px; color:var(--text-secondary);'}, s.detail),
+    ));
+  });
+  sec.appendChild(stdBlock);
+
+  const testGrid = el('div',{class:'grid-3'});
+  TEST_CATEGORIES.forEach(c=>{
+    testGrid.appendChild(el('div',{class:'block'},
+      el('h4',{style:'text-transform:none; font-size:14px;'}, c.icon + ' ' + c.cat),
+      el('ul',{style:'margin:0 0 0 18px; padding:0; font-size:12.5px; color:var(--text-secondary);'}, c.tests.map(t=>el('li',{style:'margin-bottom:5px;'},t)))
+    ));
+  });
+  sec.appendChild(testGrid);
+
+  sec.appendChild(el('div',{class:'disclaimer-box'}, '⚠️ Standards are periodically revised and region-specific (EU / US / China differ in places, e.g. GB 38031 is China-specific). Always confirm the applicable version and region with the OEM / regulatory body — this list is an orientation, not a compliance checklist.'));
+}
+
+/* =========================================================
+   SECTION: LIVE SIMULATOR
+   ========================================================= */
+function renderSimulator(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.magenta}`}, 'Case Study'),
+    el('h2',{}, '🛰️ Live 14S2P BMS Simulator'),
+    el('p',{}, 'A BMS simulator I built myself — a 14S2P Li-ion pack with Coulomb-counting SOC, passive balancing, a precharge/contactor state machine, fault injection, and a WLTP-like drive-cycle mode. It runs entirely in the browser below — try the sliders, inject a fault, or run the auto precharge sequence.')
+  ));
+
+  sec.appendChild(el('div',{class:'block'},
+    el('div',{style:'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;'},
+      el('h4',{style:'margin:0;'}, '🧪 hal_sim.c · 14S2P · 500ms tick'),
+      el('button',{class:'btn', onclick:()=>{
+        const blob = new Blob([decodeSimulatorHTML()], {type:'text/html'});
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }}, '⛶ Open standalone')
+    ),
+    (()=>{ const f=document.createElement('iframe'); f.id='simFrame'; f.style.cssText='width:100%; height:780px; border:1px solid var(--card-border); border-radius:12px; background:#0d1117;'; f.setAttribute('sandbox','allow-scripts'); return f; })()
+  ));
+  setTimeout(()=>{
+    const f = document.getElementById('simFrame');
+    if(f) f.srcdoc = decodeSimulatorHTML();
+  },0);
+
+  sec.appendChild(el('div',{class:'block'},
+    el('h4',{}, '🔋 How Other Chemistries Would Behave Differently Here'),
+    el('p',{style:'font-size:13px;'}, 'The simulator models an NMC-style Li-ion pack (≈3.0–4.2V/cell, OV/UV thresholds at 4200/3000mV). Swapping chemistry would mainly change three things in the model: the cell\'s open-circuit-voltage curve shape (see the discharge-curve comparison in the Battery Types section — LiFePO4\'s flat plateau makes OCV-based SOC far less sensitive than a sloped Li-ion/NMC curve), the OV/UV thresholds and safe operating window, and the thermal behavior (LiFePO4 and solid-state tolerate more abuse before thermal runaway; lead-acid and NiMH don\'t suffer runaway the same way but have their own failure modes — sulfation and memory effect / venting, respectively).'),
+    el('div',{class:'grid-2', style:'margin-top:10px;'},
+      el('div',{},
+        el('div',{style:'font-size:12.5px; font-weight:700; margin-bottom:4px;'}, 'Charging'),
+        el('p',{style:'font-size:12px;'}, 'Constant-current / constant-voltage (CC-CV) for Li-ion family chemistries — current ramps voltage up to a ceiling, then holds voltage while current tapers off as the cell approaches full. NiMH instead watches for a small voltage drop (−ΔV) or temperature rise to detect "full".')
+      ),
+      el('div',{},
+        el('div',{style:'font-size:12.5px; font-weight:700; margin-bottom:4px;'}, 'Discharging'),
+        el('p',{style:'font-size:12px;'}, 'Voltage sags under load proportional to internal resistance (I×R drop) and recovers toward the OCV curve at rest — this rest-recovery (relaxation) behavior is exactly why OCV-based SOC needs a rest period to be accurate.')
+      ),
+      el('div',{},
+        el('div',{style:'font-size:12.5px; font-weight:700; margin-bottom:4px;'}, 'Idle / storage'),
+        el('p',{style:'font-size:12px;'}, 'Voltage slowly relaxes toward true OCV; self-discharge is chemistry-dependent (NiMH self-discharges noticeably faster than Li-ion/LiFePO4). Long-term storage at very high or very low SOC accelerates calendar aging.')
+      ),
+    )
+  ));
+}
+
+/* =========================================================
+   QUIZ
+   ========================================================= */
+let quizState = {i:0, score:0, answered:false};
+function renderQuiz(sec){
+  sec.appendChild(el('div',{class:'topic-head'},
+    el('span',{class:'tag', style:`color:${COLORS.orange}`}, 'Test Yourself'),
+    el('h2',{}, '🎯 BMS Quiz Mode'),
+    el('p',{}, `${QUIZ.length} questions pulled straight from the material above. See how much stuck.`)
+  ));
+  const shell = el('div',{class:'quiz-shell', id:'quizShell'});
+  sec.appendChild(shell);
+  startQuiz();
+}
+function startQuiz(){
+  quizState = {i:0, score:0, answered:false};
+  paintQuiz();
+}
+function paintQuiz(){
+  const shell = document.getElementById('quizShell');
+  if(!shell) return;
+  shell.innerHTML='';
+  if(quizState.i >= QUIZ.length){
+    const pct = Math.round(quizState.score/QUIZ.length*100);
+    let verdict = 'Getting there — revisit the topic cards.';
+    if(pct>=90) verdict = 'BMS specialist. That\'s a near-perfect score.';
+    else if(pct>=70) verdict = 'Solid grasp of EV battery systems.';
+    else if(pct>=50) verdict = 'Good start — a couple of topics to revisit.';
+    shell.appendChild(el('div',{class:'quiz-result'},
+      el('div',{style:'font-size:13px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em;'}, 'Your score'),
+      el('div',{class:'score'}, `${quizState.score}/${QUIZ.length}`),
+      el('p',{style:'margin-top:10px;'}, verdict),
+      el('button',{class:'btn primary', style:'margin-top:16px;', onclick:startQuiz}, '↻ Try again')
+    ));
+    return;
+  }
+  const q = QUIZ[quizState.i];
+  shell.appendChild(el('div',{class:'quiz-progress'}, el('div',{class:'quiz-progress-fill', style:`width:${(quizState.i/QUIZ.length*100)}%`})));
+  shell.appendChild(el('div',{style:'font-size:12px; color:var(--text-muted); margin-bottom:8px;'}, `Question ${quizState.i+1} of ${QUIZ.length}`));
+  shell.appendChild(el('div',{class:'quiz-q'}, q.q));
+  const optsHost = el('div',{});
+  q.opts.forEach((opt,idx)=>{
+    optsHost.appendChild(el('button',{class:'quiz-opt', 'data-idx':idx, onclick:(e)=> pickAnswer(idx,e.currentTarget)}, opt));
+  });
+  shell.appendChild(optsHost);
+  const explain = el('div',{class:'quiz-explain', id:'quizExplain'}, q.exp);
+  shell.appendChild(explain);
+  shell.appendChild(el('button',{class:'btn primary', id:'quizNext', style:'margin-top:16px; display:none;', onclick:()=>{ quizState.i++; quizState.answered=false; paintQuiz(); }}, quizState.i===QUIZ.length-1 ? 'See results →' : 'Next question →'));
+}
+function pickAnswer(idx, btnEl){
+  if(quizState.answered) return;
+  quizState.answered = true;
+  const q = QUIZ[quizState.i];
+  const correct = idx===q.a;
+  if(correct) quizState.score++;
+  document.querySelectorAll('.quiz-opt').forEach((b,i)=>{
+    b.style.pointerEvents='none';
+    if(i===q.a) b.classList.add('correct');
+    else if(i===idx) b.classList.add('wrong');
+  });
+  document.getElementById('quizExplain').classList.add('show');
+  document.getElementById('quizNext').style.display='inline-block';
+}
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+function boot(){
+  buildNav();
+  buildLanding();
+  const main = document.getElementById('mainArea');
+  const renderers = {soc:renderSOC, chem:renderChem, switch:renderSwitch, protect:renderProtect, contactor:renderContactor, hardware:renderHardware, thermal:renderThermal, ecu:renderEcu, power:renderPower, standards:renderStandards, simulator:renderSimulator};
+  TOPICS.forEach(t=>{
+    const sec = el('section',{class:'topic', id:`sec-${t.id}`});
+    renderers[t.id](sec);
+    main.appendChild(sec);
+  });
+  const quizSec = el('section',{class:'topic', id:'sec-quiz'});
+  main.appendChild(quizSec);
+  renderQuiz(quizSec);
+
+  showSection('soc');
+  document.getElementById('footerYear').textContent = new Date().getFullYear();
+}
+boot();
+</script>
+</body>
+</html>
